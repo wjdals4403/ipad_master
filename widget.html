@@ -2,348 +2,284 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- black: 화면이 상단 상태 막대(20pt) 아래에서 시작 → 아이패드 에어 3 가로에서 창이 1112×814 -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="대시보드">
+<meta name="theme-color" content="#000000">
 <title>대시보드</title>
 <style id="main-css">
   /* =====================================================================
-     디자인 규칙 (2~3m 거리 기준)
-     - 글씨는 3단계: XL(시계) / L(최고·최저·강수) / S(라벨 2.8vh 이상)
-     - 색은 의미가 있을 때만: 빨강=최고, 파랑=최저·강수, 초록/주황=장 상태
-     - 왼쪽 = 시간·날씨, 오른쪽 = 시장
+     디자인: Claude Design 캔버스(1112×814)를 그대로 옮김
+     - 화면 전체를 1112×814 무대(#stage) 하나로 만들고, 창 크기에 맞춰 통째로 확대/축소
+       (아이패드 에어 3 홈 화면 앱에서는 창이 정확히 1112×814라서 배율 1)
+     - 글꼴: 시스템 글꼴 / 굵기 400·500·700
      ===================================================================== */
   :root{
-    --bg:#0a0c0f; --card:#13161b; --line:#1f242b;
-    --text:#eef1f5; --sub:#8c96a3; --dim:#4f5865;
-    --hot:#ff7a6b; --cold:#6cbcff; --rain:#6cbcff;
-    --good:#4aa8ff; --ok:#3ecf8e; --bad:#ffa53d; --worst:#ff5d5d;
-    --open:#3ecf8e; --ext:#ffb547; --closed:#4f5865;
-    --hand-s:#8fc8f5;                 /* 시계 모드 초침 색 (아이스 블루) */
-    --r:calc(2.2 * var(--vh));
+    --bg:#000000; --card:#1F222A; --sheet:#1A1D24; --line:#2C2F37;
+    --text:#E6E9ED; --sub:#B0B8C1; --ter:#8B95A1; --dim:#4E5968;
+    --crimson:#8A1538; --blue:#003876; --err:#E3A957;
+    --good:#79A3E3; --ok:#4DB6A8; --bad:#E3A957; --worst:#E0607A;
+    --ease:cubic-bezier(.22,.9,.24,1); --dur:.55s;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
-    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
-  .num{font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
-  .label{font-size:calc(2.8 * var(--vh));color:var(--sub);font-weight:500}
+  html,body{width:100%;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;
+    -webkit-touch-callout:none;touch-action:manipulation;overscroll-behavior:none}
+  body{position:fixed;inset:0}   /* 홈 화면 앱에서 화면이 위아래로 끌려 움직이지 않게 */
+  .num{font-variant-numeric:tabular-nums}
+  .tap{cursor:pointer}
 
-  /* 레이아웃: 2단 × 2층. 위층(시계 | 장 상태+차트)과 아래층(날씨 | 시총)이 좌우 같은 높이에서 끊김 */
-  #app{position:absolute;inset:0;padding:max(calc(3 * var(--vh)), calc(env(safe-area-inset-top) + calc(1 * var(--vh)))) 2.6vw max(calc(3.8 * var(--vh)), env(safe-area-inset-bottom));display:grid;gap:calc(2.2 * var(--vh)) 2.4vw;
-    grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:calc(29 * var(--vh)) minmax(0,1fr) auto;
-    grid-template-areas:"clock mtop" "weather mbody" "foot foot"}
-  .a-clock{grid-area:clock;display:flex;align-items:flex-start;justify-content:center;min-height:0}
-  /* 시계·날짜 세트는 스크립트(fitClockSet)가 크기와 위치를 계산: 시계 숫자 윗끝 = 오른쪽 차트 칸 윗선, 날짜 아랫끝 = 차트 칸 아랫선 */
-  .a-clock .time{will-change:transform}
-  .a-mtop{grid-area:mtop;display:grid;grid-template-rows:auto minmax(0,1fr);gap:calc(1.2 * var(--vh));min-width:0;min-height:0}
-  .a-weather{grid-area:weather;display:grid;grid-template-rows:auto minmax(0,1fr);gap:calc(2.2 * var(--vh));min-width:0;min-height:0}
-  .a-mbody{grid-area:mbody;display:grid;min-width:0;min-height:0}
+  /* 무대: 1112×814 고정, 스크립트(fitStage)가 창 가운데에 맞춰 배율만 바꿈 */
+  #stage{position:absolute;left:0;top:0;width:1112px;height:814px;transform-origin:0 0;overflow:hidden;background:var(--bg)}
 
-  /* ===== 시계 ===== */
-  /* 시간·날짜 세트 — 기본 화면과 시계 모드가 같은 규칙을 씀 (크기 --T만 다름)
-     숫자: 굵기 600 / 날짜: 숫자의 23% 크기, 숫자 아래 9% 간격, 회색, 가운데 정렬 */
-  .tset{display:inline-flex;flex-direction:column;align-items:center}
-  /* 시간 숫자는 고정폭을 끄고 자간 보정도 0: 고정폭에서는 '1'처럼 좁은 숫자 양옆에 빈 공간이 생겨서
-     글자가 실제로는 한쪽으로 쏠려 보임 → 날짜와 가운데가 어긋나 보이던 원인 */
-  .tset .t-time{font-size:var(--T);font-weight:600;line-height:.9;color:var(--text);font-variant-numeric:normal;letter-spacing:0}
-  .tset .t-date{display:flex;gap:1.4vw;align-items:baseline;flex-wrap:wrap;justify-content:center;
-    margin-top:calc(var(--T) * .09);font-size:calc(var(--T) * .23);color:var(--sub);font-weight:500}
-  .time{--T:calc(17 * var(--vh))}
-  #ddays:empty{display:none}   /* D-day가 없을 때 빈 칸이 간격을 차지해 날짜가 왼쪽으로 밀리던 문제 */
-  #ddays b{color:var(--cold);font-weight:700;margin-left:.4vw}
+  /* 기본 화면: 바깥 여백 25 · 칸 간격 17 · 38:62 두 열 · 윗줄 242 */
+  #app{position:absolute;inset:0;padding:25px;display:grid;gap:17px;
+    grid-template-columns:minmax(0,38fr) minmax(0,62fr);grid-template-rows:242px minmax(0,1fr)}
 
-  /* 현재 날씨: [아이콘 기온] [미세먼지]를 한 덩어리로 카드 가운데에 모음 */
-  .now{display:flex;align-items:center;justify-content:center;gap:2.6vw;min-width:0;background:var(--card);border-radius:var(--r);padding:calc(1.2 * var(--vh)) 1.6vw}
-  /* 날씨 열 바로 아래(카드 바깥) 오른쪽: 날씨·미세먼지를 언제 받아왔는지 한 줄
-     화면 아래 여백 안에 들어가서 좌우 카드 높이 정렬은 그대로 */
-  .a-weather{position:relative}
-  #stamp{position:absolute;right:.4vw;top:calc(100% + calc(.9 * var(--vh)));font-size:calc(1.7 * var(--vh));line-height:1;color:var(--dim);white-space:nowrap}   /* 아래 여백(3.8vh) 안에 여유 있게 들어감 */
-  .now-l{display:flex;align-items:center;gap:1.2vw}
-  .now-r{display:flex;flex-direction:column;align-items:flex-start;gap:calc(.5 * var(--vh));min-width:0}
-  #w-icon{width:calc(7 * var(--vh));height:calc(7 * var(--vh));flex:none}
-  #w-temp{font-size:calc(7.5 * var(--vh));font-weight:600;line-height:1;flex:none;padding-right:.35em}   /* 오른쪽 여백 = 매달린 '°' 자리 */
-  /* 미세먼지: 2열 표 — 왼쪽 열 '미세/초미세', 오른쪽 열 등급. 각 열 안에서 가운데 정렬 (최저/최고 라벨과 같은 방식) */
-  #w-air{font-size:calc(3 * var(--vh));color:var(--sub);display:grid;grid-template-columns:auto auto;column-gap:.7em;row-gap:calc(.2 * var(--vh));align-items:baseline;justify-items:center;white-space:nowrap}
+  /* ===== 시계 (시계 모드와 같은 모양) — 시세 카드 줄 높이 안에서 세로 가운데 ===== */
+  .a-clock{display:flex;flex-direction:column;justify-content:center;align-items:center;padding-top:39px;min-width:0;min-height:0}
+  .tset{display:flex;flex-direction:column;align-items:center}
+  .t-time{font-size:133px;font-weight:700;line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .t-date{margin-top:12px;font-size:31px;font-weight:500;color:var(--sub);letter-spacing:-.01em;white-space:nowrap}
+
+  /* ===== 장 상태 + 시세 카드 3개 ===== */
+  .a-mtop{display:grid;grid-template-rows:auto minmax(0,1fr);gap:13px;min-width:0;min-height:0}
+  .sessions{height:26px;display:flex;align-items:center;justify-content:center;gap:32px;white-space:nowrap;overflow:hidden}
+  .sess{display:flex;align-items:center;gap:8px;font-size:22px;line-height:1.2}
+  .sess .dot{width:12px;height:12px;flex:none;border-radius:50%;background:var(--dim)}
+  .sess .name{font-weight:500;color:var(--sub)}
+  .sess .state{font-weight:700;color:var(--sub)}
+  .sess.open .dot{background:var(--blue)}                                   /* 정규장: 채운 점 */
+  .sess.ext .dot{background:transparent;border:2.5px solid var(--blue)}    /* 프리·애프터·데이마켓: 테두리 점 */
+  .sess.open .state,.sess.ext .state{color:var(--text)}
+  #row-stocks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;min-height:0}
+
+  /* ===== 날씨 열 ===== */
+  .a-weather{display:grid;grid-template-rows:102px minmax(0,1fr);gap:17px;min-width:0;min-height:0}
+  .card{background:var(--card);border-radius:20px;padding:20px;min-width:0;min-height:0}
+
+  /* 현재 날씨: [아이콘 기온] ··· [미세/초미세 등급] */
+  .now{display:flex;align-items:center;justify-content:space-between;gap:12px;overflow:hidden}
+  .now-l{display:flex;align-items:center;gap:12px;flex:none;height:62px}
+  #w-icon{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;line-height:0}
+  #w-icon svg{display:block}
+  #w-temp{font-size:62px;font-weight:700;line-height:1;text-box:trim-both cap alphabetic;letter-spacing:-.02em;
+    padding-right:.3em;position:relative;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #w-temp .deg{position:absolute;top:0;font-weight:400;line-height:1;text-box:trim-both cap alphabetic}
+  #w-air{display:grid;grid-template-columns:auto 86px;grid-auto-rows:26px;column-gap:8px;row-gap:10px;align-items:center;
+    font-size:22px;line-height:1;white-space:nowrap;flex:none}
+  #w-air span{font-weight:500;color:var(--sub)}
   #w-air b{font-weight:700}
 
-  .day{background:var(--card);border-radius:var(--r);padding:calc(1.8 * var(--vh)) 1.6vw calc(1.4 * var(--vh));display:grid;
-    grid-template-rows:auto auto 1fr;gap:calc(2.6 * var(--vh));min-height:0}   /* 제목 ↔ 최저·최고 ↔ (구분선) 사이 간격 동일 */
-  .day-head{display:flex;justify-content:space-between;align-items:baseline}
-  #day-title{font-size:calc(3.6 * var(--vh));font-weight:700;display:flex;align-items:center;gap:.8vw}
-  #day-title .emo{font-size:1.1em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-  /* 오늘/내일 배지: 오늘은 시계 모드의 '오늘' 원과 같은 아이스 블루, 내일은 앰버 */
-  #day-title .tag{font-size:calc(2.4 * var(--vh));font-weight:700;border-radius:99px;padding:calc(.35 * var(--vh)) .9vw;line-height:1.2}
-  #day-title .tag.today{color:var(--hand-s);background:rgba(143,200,245,.16)}
-  #day-title .tag.tmr{color:#ffb547;background:rgba(255,181,71,.16)}
-  .day{cursor:pointer;-webkit-tap-highlight-color:transparent}
-  /* 최저 | 최고: 같은 폭 두 칸 + 가는 세로 구분선 (위 현재 기온 카드와 같은 분할 방식) */
-  .temps{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center}
-  .temps .t{display:flex;flex-direction:column;align-items:center;gap:calc(.2 * var(--vh))}
-  .temps .vline{align-self:stretch;background:var(--line);margin:calc(.8 * var(--vh)) 0}
-  .temps .v{font-size:calc(8.4 * var(--vh));font-weight:600;line-height:1.05}
-  /* '°'는 폭 계산에서 빼서 숫자만 가운데 정렬되게 (오른쪽에 매달기) */
-  .deg{position:relative;display:inline-block;width:0;height:1em;vertical-align:top;overflow:visible}
-  .deg::after{content:"°";position:absolute;left:0;top:0}
-  #d-max{color:var(--hot)} #d-min{color:var(--cold)}
-  /* 2층: 강수 — 숫자와 그래프를 한 묶음으로, 기온보다 한 단계 작게 */
-  /* 구분선 ↔ 강수 블록도 눈에 보이는 간격이 위 두 간격과 같도록(글자 윗여백 차이 보정해 3.7vh). 강수 라벨과 그래프 맨 윗선을 같은 높이에서 시작 */
-  .rain-sec{display:grid;grid-template-columns:calc(12.8 * var(--vh)) 1fr;gap:0;border-top:1px solid var(--line);padding-top:calc(3.7 * var(--vh));min-height:0}
-  /* 강수 숫자 묶음: 세로는 그래프 맨 윗선~시간 라벨 줄의 한가운데, 가로는 카드 왼쪽 끝~그래프 시작점의 한가운데 */
-  /* 세로: 위 구분선 ~ 카드 바닥의 한가운데 (위쪽 3.7vh·아래쪽 1.4vh 여백까지 칸을 넓혀서 그 안에서 가운데 정렬)
-     가로: '강수확률' 글자가 카드 왼쪽 끝 ~ 그래프 시작점의 한가운데. 숫자는 '%'까지 포함해서 같은 중심선에 */
-  .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
-    margin:calc(-3.7 * var(--vh)) 0 calc(-1.4 * var(--vh));padding:0 calc(.5 * var(--vh)) 0 0}
-  /* 크기 4.5vh: 가장 넓은 "100%"도 '강수확률' 글자 폭을 넘지 않게. 고정폭·자간 보정은 꺼서 '1' 같은 좁은 숫자 쏠림 방지 */
-  #d-rain{font-size:calc(4.5 * var(--vh));font-weight:600;line-height:1.05;color:var(--rain);font-variant-numeric:normal;letter-spacing:0}
-  /* '%'까지 포함한 숫자 묶음 전체를 가운데 정렬 (세 자리여도 그래프에 닿지 않게) */
-  #d-rain .pct{font-size:.47em;margin-left:.08em}
-  #rain-chart{min-height:calc(14 * var(--vh));position:relative}
+  /* 오늘/내일 카드: 제목 ↔ 최저·최고 ↔ 강수 (간격 20) */
+  .day{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:20px}
+  #day-title{display:flex;align-items:center;gap:12px;height:34px}
+  .tag{flex:none;height:34px;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;border-radius:17px;
+    color:#FFFFFF;font-size:19px;font-weight:700;line-height:1;text-box:trim-both cap alphabetic}
+  .tag.today{background:var(--crimson)}
+  .tag.tmr{background:var(--blue)}
+  #d-icon{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;line-height:0}
+  #d-icon svg{display:block}
+  #d-desc{height:34px;display:inline-flex;align-items:center;font-size:28px;font-weight:700;line-height:1;letter-spacing:-.01em;
+    white-space:nowrap;text-box:trim-both cap alphabetic}
+
+  .temps{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);column-gap:20px}
+  .temps .t{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+  .temps .vline{background:var(--line)}
+  .label{font-size:22px;font-weight:500;line-height:1.2;color:var(--sub);white-space:nowrap}
+  .temps .v{font-size:48px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;position:relative;padding-right:.3em}
+  .temps .v .deg{position:absolute;font-weight:400}
+
+  .rain-sec{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:20px;border-top:1px solid var(--line);padding-top:20px;min-height:0}
+  .rain-num{display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-end;gap:4px}
+  #d-rain{font-size:37px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  #d-rain .pct{font-size:.5em;font-weight:500}
+  #rain-chart{position:relative;min-width:0;min-height:0}
   #rain-chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 
-  /* ===== 시장 ===== */
-  .sessions{display:flex;justify-content:center;gap:2.4vw;font-size:calc(2.6 * var(--vh));white-space:nowrap;overflow:hidden;min-width:0}
-  .sess{display:flex;align-items:center;gap:.6vw}
-  .sess .dot{width:calc(1.4 * var(--vh));height:calc(1.4 * var(--vh));border-radius:50%;flex:none;background:var(--closed)}
-  .sess .name{color:var(--sub)}
-  .sess .state{font-weight:700}
-  .sess.open .dot{background:var(--open);box-shadow:0 0 calc(1.2 * var(--vh)) var(--open)}
-  .sess.ext .dot{background:var(--ext);box-shadow:0 0 calc(1.2 * var(--vh)) var(--ext)}
+  /* ===== 시총 목록 ===== */
+  .a-mbody{display:grid;min-width:0;min-height:0}
 
-  .row{display:grid;gap:1vw;min-height:0}
-  .tile{background:var(--card);border-radius:var(--r);overflow:hidden;position:relative;min-height:0;min-width:0;
-    pointer-events:none}   /* 시세 위젯 터치 잠금: 눌러도 TradingView 사이트로 넘어가지 않음 */
-  /* 위젯 확대: 배율(--z)은 칸 크기에 맞춰 스크립트가 자동 계산 */
+  /* ===== 시세 위젯 (TradingView) — 카드 사각형을 통째로 채움 ===== */
+  .tile{background:var(--card);border-radius:20px;overflow:hidden;position:relative;min-height:0;min-width:0;
+    pointer-events:none}   /* 터치 잠금: 눌러도 TradingView 사이트로 넘어가지 않음 */
   .tv-inner{position:absolute;left:0;top:0;width:calc(100% / var(--z,1));height:calc(100% / var(--z,1));
     transform:scale(var(--z,1));transform-origin:0 0}
-  .tile.screener{display:flex;align-items:center;justify-content:center}   /* 잘라 낸 표를 칸 정가운데에 */
+  .tile.screener{display:flex;align-items:center;justify-content:center}
   .clip{position:relative;overflow:hidden;flex:none}
   .tv-inner .tradingview-widget-container,
   .tv-inner .tradingview-widget-container__widget{width:100%;height:100%}
 
-  footer{grid-area:foot;display:flex;justify-content:space-between;gap:2vw;font-size:calc(2.2 * var(--vh));color:var(--bad)}
-  footer.empty{display:none}   /* 메모도 없고 오류도 없으면 줄 자체를 없앰 */
-  /* 하단 줄이 숨겨지면 그 줄 칸과 줄 간격도 없애서, 카드가 화면 아래 여백까지 내려오게 */
-  #app:has(footer.empty){grid-template-rows:calc(29 * var(--vh)) minmax(0,1fr);grid-template-areas:"clock mtop" "weather mbody"}
-  #memo{color:var(--sub);font-size:calc(2.8 * var(--vh));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* ===== 바깥 아래 여백(25px) 한 줄: 왼쪽 열 오른쪽 끝 = 갱신 시각 / 오른쪽 열 오른쪽 끝 = 오류 ===== */
+  #foot{position:absolute;left:25px;right:25px;bottom:0;height:25px;display:grid;
+    grid-template-columns:minmax(0,38fr) minmax(0,62fr);column-gap:17px;align-items:center;
+    font-size:17px;font-weight:500;line-height:1;white-space:nowrap}
+  #stamp{text-align:right;color:var(--ter);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+  #status{text-align:right;color:var(--err);overflow:hidden;text-overflow:ellipsis}
 
-  /* 세로 화면(또는 세로로 긴 창): 위아래로 쌓고 크기 줄임 */
-  @media (orientation: portrait){
-    #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:calc(1.6 * var(--vh));
-      grid-template-areas:"clock" "weather" "mtop" "mbody" "foot"}
-    .a-weather{gap:calc(1.4 * var(--vh))} .a-mtop{min-height:calc(22 * var(--vh))}
-    .time{--T:calc(10 * var(--vh))}
-    #w-icon{width:calc(5.5 * var(--vh));height:calc(5.5 * var(--vh))} #w-temp{font-size:calc(6 * var(--vh))}
-    .temps .v{font-size:calc(6 * var(--vh))} #d-rain{font-size:calc(3.2 * var(--vh))}
-    #rain-chart{min-height:calc(15 * var(--vh))}
-  }
-
-  /* ===== 시계 모드 (00~06시 자동 / 평소엔 큰 시계를 눌러서) — 화면 아무 곳이나 누르면 원래 화면 ===== */
-  /* 전환 모션: 기본 화면의 큰 시계 자리에서 시계 모드가 커지며 나타나고, 기본 화면은 살짝 커지며 사라짐 (반대도 동일)
-     --ease: 끝에서 부드럽게 감속하는 iOS풍 곡선 */
-  :root{--vh:1vh;--ease:cubic-bezier(.22,.9,.24,1);--dur:.55s}
-  /* space-evenly: 왼쪽 여백 = 가운데 간격 = 오른쪽 여백, 화면 크기가 바뀌면 자동으로 다시 나눔 */
-  #clockview{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-evenly;gap:0;
-    background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;
+  /* ===== 시계 모드 (00~06시 자동 / 큰 시계를 눌러서) — 아무 곳이나 누르면 원래 화면 ===== */
+  /* 전환 모션: 기본 화면 큰 시계 자리에서 커지며 나타나고, 기본 화면은 살짝 커지며 사라짐 (반대도 동일) */
+  #clockview{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-evenly;background:var(--bg);
     opacity:0;visibility:hidden;pointer-events:none;transform:scale(.42);transform-origin:var(--ox,25%) var(--oy,20%);
     transition:opacity .38s ease,transform var(--dur) var(--ease),visibility 0s linear var(--dur)}
   #app{transform-origin:var(--ox,25%) var(--oy,20%);
     transition:opacity .45s ease .05s,transform var(--dur) var(--ease),visibility 0s linear 0s}
-  @media (prefers-reduced-motion: reduce){ #clockview,#app{transition:none !important} }
   body.clockmode #clockview{opacity:1;visibility:visible;pointer-events:auto;transform:none;
     transition:opacity .38s ease,transform var(--dur) var(--ease),visibility 0s}
   body.clockmode #app{opacity:0;transform:scale(1.08);visibility:hidden;pointer-events:none;
     transition:opacity .3s ease,transform var(--dur) var(--ease),visibility 0s linear var(--dur)}
-  #analog{width:calc(74 * var(--vh));height:calc(74 * var(--vh));flex:none}
-  #analog .face{fill:none;stroke:var(--line);stroke-width:1}
-  #analog .tk{stroke:var(--dim);stroke-linecap:round}
-  #analog .tk.major{stroke:var(--sub)}
-  #analog .hh,#analog .mh{fill:var(--text)}
-  #analog .sh{stroke:var(--hand-s);fill:var(--hand-s)}
-  #analog .cap{fill:var(--bg);stroke:var(--hand-s);stroke-width:1.6}
-  /* 바늘 회전: 중심(100,100) 기준. 초침은 애니메이션 없이 1초마다 딱 끊어서 이동 */
-  #analog .hh,#analog .mh,#analog .sh{transform-origin:100px 100px}
-  .digi-box{--T:calc(16 * var(--vh));width:calc(var(--T) * 2.7)}   /* 폭 고정: 숫자 폭이 바뀌어도 원형 시계가 좌우로 움직이지 않게 */
-  /* 미니 달력: 오늘만 채운 원, 일요일·토요일만 은은한 색 */
-  .cal{margin-top:calc(5.2 * var(--vh));display:grid;grid-template-columns:repeat(7,calc(4.9 * var(--vh)));gap:calc(.8 * var(--vh)) calc(.9 * var(--vh));justify-content:center}   /* 날짜 줄과 간격을 넉넉히 */
-  .cal .w{font-size:calc(1.9 * var(--vh));color:var(--dim);text-align:center}
-  .cal .d{font-size:calc(2.4 * var(--vh));color:var(--sub);text-align:center;width:calc(4.1 * var(--vh));height:calc(4.1 * var(--vh));line-height:calc(4.1 * var(--vh));border-radius:50%;margin:0 auto}
-  .cal .sun,.t-date .sun{color:#b5776f} .cal .sat,.t-date .sat{color:#6f93b5}   /* 일요일 빨강 · 토요일 파랑 (달력·날짜 공통) */
-  .cal .today{background:var(--hand-s);color:var(--bg);font-weight:700}
+  @media (prefers-reduced-motion: reduce){ #clockview,#app{transition:none !important} }
 
-  /* 원래 화면의 큰 시계를 누르면 시계 모드 */
-  .time{cursor:pointer;-webkit-tap-highlight-color:transparent}
-  /* 세로 화면용 시계 모드 (기본 규칙보다 뒤에 있어야 적용됨) */
-  @media (orientation: portrait){ #clockview{flex-direction:column} #analog{width:calc(44 * var(--vh));height:calc(44 * var(--vh))} .digi-box{--T:calc(9 * var(--vh))}
-    .cal{margin-top:calc(3 * var(--vh));grid-template-columns:repeat(7,calc(3.6 * var(--vh)))} .cal .d{width:calc(2.9 * var(--vh));height:calc(2.9 * var(--vh));line-height:calc(2.9 * var(--vh));font-size:calc(1.7 * var(--vh))} }
+  #analog{width:617px;height:617px;flex:none}
+  #analog .face{fill:var(--sheet)}
+  #analog .tk{stroke:var(--dim);stroke-linecap:round}
+  #analog .tk.major{stroke:var(--text)}
+  #analog .hh,#analog .mh{fill:var(--text)}
+  #analog .sh{stroke:var(--blue);fill:var(--blue)}
+  #analog .cap{fill:var(--bg);stroke:var(--blue);stroke-width:1.6}
+  #analog .hh,#analog .mh,#analog .sh{transform-origin:100px 100px}   /* 회전 중심(100,100), 초침은 1초마다 끊어서 이동 */
+  .digi-box{width:360px;flex:none}   /* 폭 고정: 숫자 폭이 바뀌어도 원형 시계가 움직이지 않게 */
+
+  /* 미니 달력: 오늘만 크림슨 원, 주말은 3차 글자색 */
+  .cal{margin-top:43px;display:grid;grid-template-columns:repeat(7,41px);gap:7px;justify-content:center}
+  .cal .w{font-size:17px;font-weight:500;color:var(--ter);text-align:center}
+  .cal .d{width:37px;height:37px;line-height:37px;margin:0 auto;border-radius:50%;text-align:center;
+    font-size:22px;font-variant-numeric:tabular-nums;color:var(--text)}
+  .cal .d.we{color:var(--ter)}
+  .cal .d.today{background:var(--crimson);color:#FFFFFF;font-weight:700}
 </style>
 </head>
 <body>
-<div id="app">
-  <section class="a-clock">
-    <div class="time tset">
-      <div id="clock" class="t-time num">--:--</div>
-      <div class="t-date">
-        <span id="date">&nbsp;</span>
-        <span id="ddays"></span>
+<div id="stage">
+  <div id="app">
+    <section class="a-clock">
+      <div class="tset tap" id="clock-set" role="button" aria-label="시계 모드로 전환">
+        <div id="clock" class="t-time">--:--</div>
+        <div id="date" class="t-date">&nbsp;</div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="a-weather">
-    <div class="now">
-      <div class="now-l">
-        <div id="w-icon"></div>
-        <div id="w-temp" class="num">--°</div>
+    <section class="a-mtop">
+      <div class="sessions" role="status">
+        <div class="sess" id="sess-kr"><span class="dot"></span><span class="name">한국</span><span class="state">-</span></div>
+        <div class="sess" id="sess-us"><span class="dot"></span><span class="name">미국</span><span class="state">-</span></div>
       </div>
-      <div class="now-r">
-        <div id="w-air">&nbsp;</div>
-      </div>
-    </div>
+      <div id="row-stocks"></div>
+    </section>
 
-    <div class="day" id="day">
-      <div class="day-head">
+    <section class="a-weather">
+      <div class="card now">
+        <div class="now-l">
+          <div id="w-icon"></div>
+          <div id="w-temp">-</div>
+        </div>
+        <div id="w-air"></div>
+      </div>
+
+      <div class="card day tap" id="day" role="button" aria-label="오늘·내일 날씨 바꿔 보기">
         <div id="day-title">&nbsp;</div>
+        <div class="temps">
+          <div class="t"><div class="label">최저</div><div id="d-min" class="v">-</div></div>
+          <div class="vline"></div>
+          <div class="t"><div class="label">최고</div><div id="d-max" class="v">-</div></div>
+        </div>
+        <div class="rain-sec">
+          <div class="rain-num"><div class="label">강수확률</div><div id="d-rain">-</div></div>
+          <div id="rain-chart"></div>
+        </div>
       </div>
-      <div class="temps">
-        <div class="t"><div class="label">최저</div><div id="d-min" class="v num">-</div></div>
-        <div class="vline"></div>
-        <div class="t"><div class="label">최고</div><div id="d-max" class="v num">-</div></div>
-      </div>
-      <div class="rain-sec">
-        <div class="rain-num"><div class="label">강수확률</div><div id="d-rain" class="num">-</div></div>
-        <div id="rain-chart"></div>
-      </div>
+    </section>
+
+    <section class="a-mbody" id="row-group"></section>
+
+    <div id="foot">
+      <div id="stamp"></div>
+      <div id="status"></div>
     </div>
-    <div id="stamp" class="num"></div>
-  </section>
+  </div>
 
-  <section class="a-mtop">
-    <div class="sessions">
-      <div class="sess" id="sess-kr"><span class="dot"></span><span class="name">한국</span><span class="state">-</span></div>
-      <div class="sess" id="sess-us"><span class="dot"></span><span class="name">미국</span><span class="state">-</span></div>
+  <div id="clockview" class="tap" aria-label="시계 모드 — 누르면 원래 화면">
+    <svg id="analog" viewBox="0 0 200 200"></svg>
+    <div class="digi-box tset">
+      <div id="digital" class="t-time">--:--</div>
+      <div id="cv-date" class="t-date">&nbsp;</div>
+      <div class="cal" id="cal"></div>
     </div>
-    <div class="row" id="row-stocks"></div>
-  </section>
-
-  <section class="a-mbody">
-    <div class="row" id="row-group"></div>
-  </section>
-
-  <footer class="empty">
-    <div id="memo"></div>
-    <div id="status"></div>
-  </footer>
-</div>
-
-<div id="clockview" aria-label="시계 모드 — 누르면 원래 화면">
-  <svg id="analog" viewBox="0 0 200 200"></svg>
-  <div class="digi-box tset">
-    <div id="digital" class="t-time num">--:--</div>
-    <div id="cv-date" class="t-date">&nbsp;</div>
-    <div class="cal num" id="cal"></div>
   </div>
 </div>
 
 <script id="main-js">
-function setVh() { document.documentElement.style.setProperty("--vh", `${window.innerHeight / 100}px`); }
-setVh();
-
-// 점검용: 주소 끝에 ?debug 를 붙이면 화면 크기 정보를 왼쪽 위에 작게 표시
-if (/[?&]debug\b/.test(location.search)) addEventListener("load", () => {
-  const pr = document.createElement("div");
-  pr.style.cssText = "position:fixed;left:0;top:0;width:0;height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);visibility:hidden";
-  document.body.append(pr);
-  const box = document.createElement("div");
-  box.style.cssText = "position:fixed;left:4px;top:4px;z-index:99;font:12px/1.4 monospace;background:#000c;color:#ff0;padding:4px 6px;pointer-events:none";
-  document.body.append(box);
-  const upd = () => { const cs = getComputedStyle(pr);
-    box.textContent = `창 ${innerWidth}×${innerHeight} · 100vh=${Math.round(pr.getBoundingClientRect().height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))} · 안전영역 위 ${cs.paddingTop} 아래 ${cs.paddingBottom}`; };
-  upd(); addEventListener("resize", upd);
-});
-
 /* =====================================================================
    설정 — 여기만 고치면 돼요
-   (GitHub Pages는 공개 페이지라서 보유 수량, 금액, 일정 같은 개인 정보는 넣지 마세요)
+   (GitHub Pages는 공개 페이지라서 개인 정보는 넣지 마세요)
    ===================================================================== */
 const CONFIG = {
   // 위치 (기본: 성남시청). 서울시청은 37.5665, 126.9780
   LOCATION: { name: "성남", lat: 37.4200, lon: 127.1267 },
 
-  // 이 시각 이후로는 날씨 칸이 '내일' 기준으로 바뀌어요
+  // 이 시각 이후로는 날씨 카드가 '내일' 기준으로 바뀌어요
   TOMORROW_FROM_HOUR: 18,
-
-  // D-day: date가 빈 칸이면 표시 안 함 (형식 "YYYY-MM-DD")
-  DDAYS: [
-    { label: "복무 종료", date: "" },
-  ],
-
-  // 하단 한 줄 메모: 빈 칸이면 표시 안 함. 여러 개면 30초마다 돌아가며 보여줘요
-  MEMO: [""],
 
   // 야간 시계 모드: 이 시간에는 자동으로 시계 모드 (터치하면 원래 화면, 손 떼고 IDLE_SEC초 뒤 다시 시계 모드)
   NIGHT: { start: "00:00", end: "06:00", IDLE_SEC: 15 },
 
-  // 위 줄 차트 (TradingView 심볼, 이름)
+  // 위 줄 시세 카드 (TradingView 심볼, 위젯 안에 표시될 이름)
   // 한국거래소(KRX) 종목은 TradingView 위젯에서 막혀 있어서 넣어도 안 나와요
   STOCKS: [
     ["AMEX:SPYM",     "SPYM"],
     ["AMEX:XLV",      "XLV"],
-    ["FX_IDC:USDKRW", "USD/KRW"],       // 1달러당 원화
+    ["FX_IDC:USDKRW", "USD/KRW"],
   ],
 
-  // 아래 목록: 미국 시총 상위
-  // MODE "auto"  → TradingView 스크리너가 시총 순으로 자동 정렬 (순위 바뀌면 자동 반영)
-  // MODE "fixed" → 아래 symbols 순서 그대로 표시
-  GROUP: {
-    MODE: "auto",
-    SHOW_ROWS: 10,                      // 칸 안에 보이게 맞출 줄 수
-    title: "US 시총 상위 10",
-    symbols: [                          // MODE "fixed"일 때만 사용 (2026년 중반 순위)
-      ["NASDAQ:NVDA",  "NVIDIA"],
-      ["NASDAQ:GOOGL", "Alphabet"],
-      ["NASDAQ:AAPL",  "Apple"],
-      ["NASDAQ:MSFT",  "Microsoft"],
-      ["NASDAQ:SPCX",  "SpaceX"],
-      ["NASDAQ:AMZN",  "Amazon"],
-      ["NASDAQ:AVGO",  "Broadcom"],
-      ["NASDAQ:META",  "Meta"],
-      ["NASDAQ:TSLA",  "Tesla"],
-      ["NASDAQ:MU",    "Micron"],
-    ],
-  },
-
-  // 위젯 크기 조절
-  // - 화면 높이 834px(아이패드 에어 3 가로)을 기준으로 비례 확대/축소해서, 컴퓨터에서도 같은 비율로 보여요
-  // - ZOOM: 1보다 크면 글씨가 커지고, 작으면 작아져요
-  // - GROUP_ROW_PX / GROUP_HEAD_PX: 목록 한 줄 / 머리 부분의 위젯 원래 높이(px) 추정값.
-  //   목록이 아래에서 잘리면 값을 늘리고, 아래가 남으면 줄이세요
-  TV: { REF_HEIGHT: 834, ZOOM_STOCK: 1.0, ZOOM_GROUP: 1.0, GROUP_ROW_PX: 44, GROUP_HEAD_PX: 50 },
+  // 시세 카드 위젯 확대 배율 (1보다 크면 글씨가 커져요)
+  ZOOM_STOCK: 1.0,
 
   // 시세 위젯 언어: "en"(영어) / "kr"(한국어). 한국어는 번역이 어색해서 영어 권장
   TV_LOCALE: "en",
 
-  // 스크리너(시총 자동 목록) 보이는 범위
-  // - 위젯 열은 지정할 수 없어서, 위젯을 넓게 그린 뒤 왼쪽 일부만 잘라서 보여줘요
-  // - VISIBLE_W: 위젯 원래 크기 기준으로 보여줄 폭(px). 'Technical Rating' 열 오른쪽 끝에 맞춘 값
+  // 시총 목록(TradingView 스크리너, 미국 시총 순 자동 정렬) 보이는 범위
+  // - 열은 지정할 수 없어서, 위젯을 넓게 그린 뒤 왼쪽 일부만 잘라서 보여줘요
+  // - VISIBLE_W: 위젯 원래 크기 기준 보여줄 폭(px). 'Technical Rating' 열 오른쪽 끝에 맞춘 값
   //   열이 잘리면 늘리고, 다음 열(Volume)이 삐져나오면 줄이세요
-  // - INNER_W: 위젯을 그릴 전체 폭(px). 표 전체 폭보다 좁아야 열 너비가 늘어나지 않아요
-  // - ROW_PX / HEAD_PX: 한 줄 / 머리 부분 높이(px)
-  // - FIT: "width" → 칸 가로를 꽉 채움(글씨 큼, 보이는 줄 수는 높이에 맞춰 자동, 아이패드 약 8줄)
-  //        "rows"  → SHOW_ROWS 줄이 다 보이게 맞춤(글씨 작아지고 좌우 여백 생김)
-  SCREENER: { FIT: "width", VISIBLE_W: 505, INNER_W: 900, ROW_PX: 49, HEAD_PX: 48 },
+  // - INNER_W: 위젯을 그릴 전체 폭(px) / ROW_PX·HEAD_PX: 한 줄 / 머리 부분 높이(px)
+  // - FIT: "width" → 카드 가로를 꽉 채움 / "rows" → SHOW_ROWS 줄이 다 보이게 맞춤
+  SCREENER: { FIT: "width", SHOW_ROWS: 10, VISIBLE_W: 505, INNER_W: 900, ROW_PX: 49, HEAD_PX: 48 },
 
   REFRESH_WEATHER_MIN: 10,               // 날씨·미세먼지 함께 갱신하는 주기(분)
   RELOAD_PAGE_HOURS: 6,
-  UPDATE_CHECK_MIN: 5,                    // GitHub에 새로 커밋된 버전이 있는지 확인하는 주기(분). 화면이 켜질 때도 바로 확인
+  UPDATE_CHECK_MIN: 5,                   // GitHub에 새 버전이 있는지 확인하는 주기(분). 화면이 켜질 때도 바로 확인
 };
 
 /* ===================================================================== */
 const TZ = "Asia/Seoul";
+const STAGE_W = 1112, STAGE_H = 814;
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, "0");
+const body = document.body;
+
+/* ---------- 무대 배율: 창 안에 1112×814를 통째로 맞추고 가운데 정렬 ---------- */
+let stageScale = 1;
+function fitStage() {
+  const s = Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H);
+  stageScale = s;
+  const x = (innerWidth - STAGE_W * s) / 2, y = (innerHeight - STAGE_H * s) / 2;
+  $("stage").style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+}
+fitStage();
+
+// 점검용: 주소 끝에 ?debug 를 붙이면 창 크기와 배율을 왼쪽 위에 작게 표시
+if (/[?&]debug\b/.test(location.search)) addEventListener("load", () => {
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:4px;top:4px;z-index:99;font:12px/1.4 monospace;background:#000c;color:#ff0;padding:4px 6px;pointer-events:none";
+  document.body.append(box);
+  const upd = () => { box.textContent = `창 ${innerWidth}×${innerHeight} · 배율 ${stageScale.toFixed(3)} · dpr ${devicePixelRatio}`; };
+  upd(); addEventListener("resize", upd);
+});
 
 const _fmt = {};                                       // 시간대별 날짜 형식기 캐시
 function partsIn(tz, d = new Date()) {
@@ -356,10 +292,10 @@ function partsIn(tz, d = new Date()) {
 }
 const toMins = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
-// 실패하기 쉬운 요청: 최대 3회, 지연 후 재시도
+// 실패하기 쉬운 요청: 최대 3회, 지연(3초·6초) 후 재시도, 15초 안에 응답 없으면 끊고 재시도
 async function fetchJSON(url, tries = 3, delayMs = 3000, timeoutMs = 15000) {
   for (let i = 1; i <= tries; i++) {
-    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), timeoutMs);   // 15초 안에 응답 없으면 끊고 재시도
+    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
       const r = await fetch(url, { cache: "no-store", signal: ac.signal });
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -373,20 +309,16 @@ async function fetchJSON(url, tries = 3, delayMs = 3000, timeoutMs = 15000) {
   }
 }
 
-// 하단 줄: 평소엔 숨기고, 갱신 실패나 메모가 있을 때만 보임
+/* ---------- 아래 한 줄: 갱신 시각(항상) / 오류(있을 때만) ---------- */
 const statusMsgs = {};
 function setStatus(key, msg) {
   statusMsgs[key] = msg;
   $("status").textContent = Object.values(statusMsgs).filter(Boolean).join("  ·  ");
-  syncFooter();
 }
-// 정보를 받아온 시각(한국 시간, 시:분:초)
 const stampNow = () => { const d = new Date(), p = partsIn(TZ, d); return `${pad(p.h)}:${pad(p.m)}:${pad(d.getSeconds())}`; };
-// 날씨와 미세먼지는 같은 곳(Open-Meteo)에서 같은 주기로 받아오므로 시각은 한 줄만
 function setStamp() {
   $("stamp").textContent = `날씨 ${stampNow()} 업데이트 · ${CONFIG.REFRESH_WEATHER_MIN}분마다`;
 }
-const syncFooter = () => document.querySelector("footer").classList.toggle("empty", !$("status").textContent && !$("memo").textContent);
 
 /* ---------- 시계 ---------- */
 function renderClock() {
@@ -394,66 +326,7 @@ function renderClock() {
   $("clock").textContent = `${pad(p.h)}:${pad(p.m)}`;
   _fmt.date = _fmt.date || new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" });
   const ds = _fmt.date.format(now);
-  if ($("date").textContent !== ds) {
-    // 토요일은 파랑, 일요일은 빨강 (시계 모드 달력과 같은 색) — 요일 글자에만
-    const parts = _fmt.date.formatToParts(now), dow = partsIn(TZ, now).wd;
-    const cls = dow === "Sat" ? "sat" : dow === "Sun" ? "sun" : "";
-    $("date").innerHTML = parts.map(x => x.type === "weekday" && cls ? `<span class="${cls}">${x.value}</span>` : x.value).join("");
-    requestAnimationFrame(fitClockSet);
-  }
-  const today = new Date(p.ymd + "T00:00:00+09:00");
-  $("ddays").innerHTML = CONFIG.DDAYS.filter(d => d.label && d.date).map(d => {
-    const diff = Math.round((new Date(d.date + "T00:00:00+09:00") - today) / 86400000);
-    return `<span>${d.label}<b class="num">${diff > 0 ? "D-" + diff : diff === 0 ? "D-DAY" : "D+" + (-diff)}</b></span>`;
-  }).join("&nbsp;&nbsp;");
-}
-
-/* ---------- 시계·날짜 세트 크기 맞추기 ----------
-   시계 숫자의 '보이는' 윗끝과 날짜의 '보이는' 아랫끝이 오른쪽 차트 칸의 윗선·아랫선에 오도록
-   글자 크기(--T)와 세로 위치를 계산. 글꼴마다 글자 위아래 여백이 달라서, 실제로 그려 보고 잉크 위치를 잼 */
-const _inkCv = document.createElement("canvas");
-function inkExtent(text, font) {                           // 기준선 위로 몇 px, 아래로 몇 px 칠해지는지
-  const ctx = _inkCv.getContext("2d");
-  ctx.font = font;
-  const w = Math.ceil(ctx.measureText(text).width) + 20, size = parseFloat(font.match(/(\d+(?:\.\d+)?)px/)[1]);
-  _inkCv.width = w; _inkCv.height = Math.ceil(size * 2.2);
-  const base = Math.round(size * 1.5);
-  ctx.font = font; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#000";
-  ctx.clearRect(0, 0, w, _inkCv.height); ctx.fillText(text, 10, base);
-  const px = ctx.getImageData(0, 0, w, _inkCv.height).data;
-  let top = -1, bottom = -1;
-  for (let yy = 0; yy < _inkCv.height; yy++) {
-    for (let xx = 0; xx < w; xx++) if (px[(yy * w + xx) * 4 + 3] > 60) { if (top < 0) top = yy; bottom = yy; break; }
-  }
-  return top < 0 ? { up: 0, down: 0 } : { up: base - top, down: bottom + 1 - base };
-}
-function baselineY(el) {                                   // 화면에서 그 줄의 기준선 위치
-  const probe = document.createElement("span");
-  probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
-  el.appendChild(probe);
-  const y = probe.getBoundingClientRect().top;
-  probe.remove();
-  return y;
-}
-function fitClockSet() {
-  const set = document.querySelector(".a-clock .time"), tiles = $("row-stocks").getBoundingClientRect();
-  if (!matchMedia("(orientation: landscape)").matches || !tiles.height) { set.style.removeProperty("--T"); set.style.transform = ""; return; }
-  const ff = getComputedStyle($("clock")).fontFamily, col = document.querySelector(".a-clock").getBoundingClientRect();
-  const measure = (T) => {                                 // 글자 크기 T일 때 보이는 윗끝·아랫끝
-    set.style.setProperty("--T", `${T}px`);
-    const c = inkExtent($("clock").textContent, `600 ${T}px ${ff}`);
-    const d = inkExtent($("date").textContent, `500 ${T * .23}px ${ff}`);
-    return { top: baselineY($("clock")) - c.up, bottom: baselineY($("date")) + d.down };
-  };
-  set.style.transform = "";
-  const m100 = measure(100);
-  let T = 100 * tiles.height / (m100.bottom - m100.top);                 // 높이에 딱 맞는 크기
-  const cx = _inkCv.getContext("2d"); cx.font = `600 100px ${ff}`;
-  const wide = cx.measureText("00:00").width;                            // 가장 넓은 축에 드는 시각 폭(글자 크기 100px 기준)
-  T = Math.min(T, 100 * (col.width * .98) / wide);                      // 가장 넓은 시각도 칸 안에 들어가게
-  const m = measure(T);
-  const dy = (tiles.top + tiles.bottom) / 2 - (m.top + m.bottom) / 2;   // 보이는 세트의 세로 중심 = 차트 칸 세로 중심
-  set.style.transform = `translateY(${dy}px)`;
+  if ($("date").textContent !== ds) $("date").textContent = ds;
 }
 
 /* ---------- 장 상태 ----------
@@ -462,22 +335,21 @@ function fitClockSet() {
    데이마켓은 일~목 20:00(ET)에 열려서 월~금 04:00(ET)까지. 공휴일은 반영 안 함 */
 function krSession() {
   const p = partsIn(TZ);
-  if (["Sat", "Sun"].includes(p.wd)) return { cls: "", state: "휴장", end: null };
+  if (["Sat", "Sun"].includes(p.wd)) return { cls: "", state: "휴장" };
   const t = p.mins, S = [["08:00", "09:00", "ext", "프리마켓"], ["09:00", "15:30", "open", "정규장"], ["15:30", "20:00", "ext", "애프터마켓"]];
-  for (const [a, b, cls, state] of S) if (t >= toMins(a) && t < toMins(b)) return { cls, state, end: toMins(b) - t };
-  return { cls: "", state: "장 마감", end: null };
+  for (const [a, b, cls, state] of S) if (t >= toMins(a) && t < toMins(b)) return { cls, state };
+  return { cls: "", state: "장 마감" };
 }
 function usSession() {
   const p = partsIn("America/New_York"), t = p.mins, wd = p.wd;
   const weekday = !["Sat", "Sun"].includes(wd);
-  if (weekday && t >= toMins("04:00") && t < toMins("09:30")) return { cls: "ext", state: "프리마켓", end: toMins("09:30") - t };
-  if (weekday && t >= toMins("09:30") && t < toMins("16:00")) return { cls: "open", state: "정규장", end: toMins("16:00") - t };
-  if (weekday && t >= toMins("16:00") && t < toMins("20:00")) return { cls: "ext", state: "애프터마켓", end: toMins("20:00") - t };
+  if (weekday && t >= toMins("04:00") && t < toMins("09:30")) return { cls: "ext", state: "프리마켓" };
+  if (weekday && t >= toMins("09:30") && t < toMins("16:00")) return { cls: "open", state: "정규장" };
+  if (weekday && t >= toMins("16:00") && t < toMins("20:00")) return { cls: "ext", state: "애프터마켓" };
   const eveningOpen = ["Sun", "Mon", "Tue", "Wed", "Thu"].includes(wd) && t >= toMins("20:00");
   const morningOpen = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(wd) && t < toMins("04:00");
-  if (eveningOpen) return { cls: "ext", state: "데이마켓", end: 1440 - t + toMins("04:00") };
-  if (morningOpen) return { cls: "ext", state: "데이마켓", end: toMins("04:00") - t };
-  return { cls: "", state: "휴장", end: null };
+  if (eveningOpen || morningOpen) return { cls: "ext", state: "데이마켓" };
+  return { cls: "", state: "휴장" };
 }
 function renderSessions() {
   [["sess-kr", krSession()], ["sess-us", usSession()]].forEach(([id, s]) => {
@@ -512,19 +384,20 @@ function wmo(code, isDay = 1) {
   if (code >= 95) return ["뇌우", "storm"];
   return ["-", "cloud"];
 }
-// 날씨 상태별 색 (맑음=노랑, 구름=회청, 비=파랑, 눈=흰빛, 안개=회색, 뇌우=보라)
-// 날씨 상태 이모지 (날씨 카드 제목 왼쪽)
-const SKY_EMOJI = { "맑음": "☀️", "대체로 맑음": "🌤️", "구름 조금": "⛅", "흐림": "☁️", "안개": "🌫️",
-                    "이슬비": "🌦️", "비": "🌧️", "소나기": "🌦️", "눈": "❄️", "눈 소나기": "🌨️", "뇌우": "⛈️" };
-const SKY_COLOR = { sun: "#ffd36b", moon: "#ffd36b", partly: "#f0dca0", cloud: "#b8c2cf",
-                    rain: "#6cbcff", snow: "#e3f1ff", fog: "#9aa3ae", storm: "#c9a2ff" };
-const svgIcon = (k) => `<svg viewBox="0 0 64 64" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
+// 현재 날씨 44px·선 3.4 / 날씨 카드 30px·선 4 (캔버스 기준)
+const svgIcon = (k, size, stroke) => `<svg viewBox="0 0 64 64" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.cloud}</svg>`;
 
-// 기온 표시: 진짜 마이너스 기호(−, 하이픈보다 숫자와 붙어 보임) + 폭에서 빠지는 '°'
-const degHTML = (v) => { const n = Math.round(v); return `${n < 0 ? "−" + Math.abs(n) : n}<span class="deg"></span>`; };
-let lastWeather = null;   // 화면 크기 바뀔 때 그래프 다시 그리기용
+// 기온: 진짜 마이너스 기호(−) + 폭에서 빠지는 매달린 '°'
+const degHTML = (v) => {
+  if (v == null || !isFinite(v)) return "-";                   // 값이 비어 오면 0°로 보이지 않게
+  const n = Math.round(v); return `${n < 0 ? "−" + Math.abs(n) : n}<span class="deg">°</span>`;
+};
+let lastWeather = null;
 
+let weatherBusy = false;
 async function updateWeather() {
+  if (weatherBusy) return;                                       // 이미 받는 중이면 겹쳐 부르지 않음
+  weatherBusy = true;
   const { lat, lon } = CONFIG.LOCATION;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
     + `&current=temperature_2m,weather_code,is_day`
@@ -534,31 +407,31 @@ async function updateWeather() {
   try {
     const d = await fetchJSON(url);
     lastWeather = d;
-    const c = d.current, [, icon] = wmo(c.weather_code, c.is_day);
-    $("w-icon").innerHTML = svgIcon(icon);
+    const c = d.current, [desc, icon] = wmo(c.weather_code, c.is_day);
+    $("w-icon").innerHTML = svgIcon(icon, 44, 3.4);
+    $("w-icon").setAttribute("aria-label", desc);
     $("w-temp").innerHTML = degHTML(c.temperature_2m);
     renderDay();
     setStamp();
     setStatus("w", "");
   } catch (e) {
     setStatus("w", "날씨 갱신 실패(다음 주기에 재시도)");
+  } finally {
+    weatherBusy = false;
   }
 }
 
 /* 날씨 카드 누르기: 오늘 ↔ 내일을 15초 동안 바꿔 보여주고, 그 뒤 시간대에 맞는 쪽으로 돌아감
-   바뀔 때는 시계 모드처럼 줄어들며 사라지고 → 커지며 나타나는 모션 */
+   바뀔 때는 줄어들며 사라지고(0.18초) → 커지며 나타나는(0.48초) 모션 */
 let dayPeek = null;                                   // { view: "today"|"tmr", timer }
 const PEEK_SEC = 15;
 async function swapDay(update) {
   const els = [...$("day").children];
   const ease = "cubic-bezier(.22,.9,.24,1)";
-  // 모션을 쓸 수 없거나, 탭이 안 보이는 중이면(크롬 백그라운드 탭은 모션이 멈춤) 모션 없이 바로 갱신
   if (!els[0].animate || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches) {
     els.forEach(el => el.getAnimations && el.getAnimations().forEach(a => a.cancel()));
     update(); return;
   }
-  // 사라지는 모션은 '끝까지 투명 유지(fill)' 없이 실행하고, 끝나길 최대 0.3초만 기다림
-  // → 모션이 멈추거나 취소돼도 내용이 투명한 채로 남지 않음
   const outs = els.map(el => el.animate(
     [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.94)" }],
     { duration: 180, easing: "ease-in" }));
@@ -569,26 +442,24 @@ async function swapDay(update) {
       el.getAnimations().forEach(a => a.cancel());
       el.animate([{ opacity: 0, transform: "scale(1.05)" }, { opacity: 1, transform: "scale(1)" }], { duration: 480, easing: ease });
     });
-    // 안전장치: 0.7초 뒤에도 모션이 남아 있으면(탭 전환 등으로 멈춘 경우) 모두 걷어내서 내용이 반드시 보이게
+    // 안전장치: 0.7초 뒤에도 모션이 남아 있으면 모두 걷어내서 내용이 반드시 보이게
     setTimeout(() => els.forEach(el => el.getAnimations().forEach(a => a.cancel())), 700);
   }
 }
+const defaultView = () => partsIn(TZ).h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today";
 function endPeek() {
   if (!dayPeek) return;
   clearTimeout(dayPeek.timer);
   dayPeek = null;
-  const before = $("day").dataset.view;
-  const p = partsIn(TZ), def = p.h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today";
-  if (before !== def) swapDay(renderDay); else renderDay();
+  if ($("day").dataset.view !== defaultView()) swapDay(renderDay); else renderDay();
 }
 $("day").addEventListener("click", () => {
   if (!lastWeather) return;
   const shown = $("day").dataset.view || "today";
   const next = shown === "today" ? "tmr" : "today";
-  const def = partsIn(TZ).h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today";
   if (dayPeek) clearTimeout(dayPeek.timer);
-  // 시간대 기본 화면으로 되돌리는 터치면 타이머 없이 그대로 둠, 반대쪽을 보는 경우에만 15초 뒤 복귀
-  dayPeek = next === def ? null : { view: next, timer: setTimeout(endPeek, PEEK_SEC * 1000) };
+  // 시간대 기본 화면으로 되돌리는 터치면 타이머 없이 그대로, 반대쪽을 보는 경우에만 15초 뒤 복귀
+  dayPeek = next === defaultView() ? null : { view: next, timer: setTimeout(endPeek, PEEK_SEC * 1000) };
   swapDay(renderDay);
 });
 
@@ -597,110 +468,112 @@ function renderDay() {
   if (!d) return;
   const p = partsIn(TZ);
   const todayIdx = d.daily.time.indexOf(p.ymd);                    // 받아온 예보 중 '오늘'이 몇 번째인지 런타임으로 확인
-  if (todayIdx < 0) {                                              // 예보가 날짜를 못 따라오면(자정 직후 등) 새로 받기
-    if (Date.now() - (renderDay.lastForce || 0) > 60 * 1000) { renderDay.lastForce = Date.now(); updateWeather(); }   // 1분에 한 번만
+  if (todayIdx < 0) {                                              // 예보가 날짜를 못 따라오면(자정 직후 등) 새로 받기 (1분에 한 번만)
+    if (Date.now() - (renderDay.lastForce || 0) > 60 * 1000) { renderDay.lastForce = Date.now(); updateWeather(); }
     return;
   }
   const hasTmr = todayIdx + 1 < d.daily.time.length;
-  // 기본: 18시부터 내일. 카드를 눌렀으면 15초 동안은 누른 쪽(dayPeek)을 보여줌
-  const want = dayPeek ? dayPeek.view : (p.h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today");
+  const want = dayPeek ? dayPeek.view : defaultView();
   const isTmr = want === "tmr" && hasTmr;
   $("day").dataset.view = isTmr ? "tmr" : "today";
   const idx = todayIdx + (isTmr ? 1 : 0);
   const dayStr = d.daily.time[idx];
   const [ddesc, dicon] = wmo(d.daily.weather_code[idx]);
-  // 오늘/내일 배지 + 날씨 상태(색으로 구별)
   $("day-title").innerHTML = (isTmr ? `<span class="tag tmr">내일</span>` : `<span class="tag today">오늘</span>`)
-    + `<span class="emo">${SKY_EMOJI[ddesc] || ""}</span><span style="color:${SKY_COLOR[dicon]}">${ddesc}</span>`;
+    + `<div id="d-icon">${svgIcon(dicon, 30, 4)}</div><span id="d-desc">${ddesc}</span>`;
   $("d-max").innerHTML = degHTML(d.daily.temperature_2m_max[idx]);
   $("d-min").innerHTML = degHTML(d.daily.temperature_2m_min[idx]);
   const hours = [], probs = [];
   d.hourly.time.forEach((t, i) => { if (t.startsWith(dayStr)) { hours.push(Number(t.slice(11, 13))); probs.push(d.hourly.precipitation_probability[i] ?? 0); } });
-  // 큰 숫자는 그래프와 같은 시간별 값의 최댓값 → 숫자와 그래프 최고점이 항상 일치
-  $("d-rain").innerHTML = `${probs.length ? Math.max(...probs) : 0}<small class="pct">%</small>`;
+  // 큰 숫자 = 그래프와 같은 시간별 값의 최댓값 → 숫자와 그래프 최고점이 항상 일치
+  $("d-rain").innerHTML = `${probs.length ? Math.max(...probs) : 0}<span class="pct">%</span>`;
   drawRainChart(hours, probs, isTmr ? null : p.h + p.m / 60);
 }
 
-// CSS 변수 → 실제 색 값 (SVG 속성에는 var()가 브라우저마다 안 먹힐 수 있음)
-const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-
-let lastRain = null;      // 크기 변화 시 다시 그리기용
+/* 강수 그래프 (캔버스 249×174 기준: 그래프 위 20 · 아래 26 · 왼쪽 4 · 오른쪽 10 여백, 눈금 글자 14px)
+   지나간 시간은 회색으로 흐리게, 지금 시각은 점선, 최고점은 점 + '17시 60%' */
+let lastRain = null;
 function drawRainChart(hours, probs, nowH) {
   lastRain = [hours, probs, nowH];
   const box = $("rain-chart");
   const W = box.clientWidth, H = box.clientHeight;
-  if (!probs.length) return;
+  if (!probs.length) { box.innerHTML = ""; return; }
   if (!W || !H) { requestAnimationFrame(() => box.clientHeight && drawRainChart(hours, probs, nowH)); return; }
-  const C = { rain: cssVar("--rain"), line: cssVar("--line"), dim: cssVar("--dim"), sub: cssVar("--sub"), text: cssVar("--text") };
-  const vh = window.innerHeight / 100;
-  const fs = Math.round(2.6 * vh);                 // 최고점 라벨 기준 크기
-  const afs = Math.round(2.2 * vh);                // 시간 눈금 글씨 (조금 작게)
-  const pfs = Math.round(2.4 * vh);                // 최고점 라벨 ('강수확률' 2.8vh보다 작게)
-  const padL = fs * 0.6, padR = fs * 0.45, padT = fs * 0.35, padB = afs * 1.9;   // 위 여백 최소(맨 윗선 = 강수 라벨 높이), 오른쪽 여백은 왼쪽 여백과 같아지도록
+  const C = { blue: "#003876", line: "#2C2F37", sub: "#B0B8C1", text: "#E6E9ED", card: "#1F222A" };
+  const FONT = `font-family="-apple-system, 'Apple SD Gothic Neo', sans-serif"`;
+  const padL = 4, padR = 10, padT = 20, padB = 26;
   const x = (h) => padL + (h / 23) * (W - padL - padR);
   const y = (v) => padT + (1 - v / 100) * (H - padT - padB);
   const pts = probs.map((v, i) => [x(hours[i]), y(v)]);
+  const f = (n) => n.toFixed(1);
 
-  // 부드러운 곡선 (단조 보간 대신 가벼운 카디널 스플라인, 0~100 범위로 제한)
+  // 부드러운 곡선 (가벼운 카디널 스플라인, 0~100 범위로 제한)
   const clampY = (v) => Math.min(y(0), Math.max(y(100), v));
-  let path = `M${pts[0][0]},${pts[0][1]}`;
+  let path = `M${f(pts[0][0])},${f(pts[0][1])}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2, k = 0.18;
-    path += ` C${p1[0] + (p2[0] - p0[0]) * k},${clampY(p1[1] + (p2[1] - p0[1]) * k)} ${p2[0] - (p3[0] - p1[0]) * k},${clampY(p2[1] - (p3[1] - p1[1]) * k)} ${p2[0]},${p2[1]}`;
+    path += ` C${f(p1[0] + (p2[0] - p0[0]) * k)},${f(clampY(p1[1] + (p2[1] - p0[1]) * k))} ${f(p2[0] - (p3[0] - p1[0]) * k)},${f(clampY(p2[1] - (p3[1] - p1[1]) * k))} ${f(p2[0])},${f(p2[1])}`;
   }
-  const area = `${path} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z`;
+  const area = `${path} L${f(pts[pts.length - 1][0])},${f(y(0))} L${f(pts[0][0])},${f(y(0))} Z`;
 
   const max = Math.max(...probs), mi = probs.indexOf(max);
-  // 눈금선: 가로(0·50·100%)와 세로(0·6·12·18·23시)를 같은 색·굵기로
-  const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="${C.line}" stroke-width="1"/>`).join("")
-    + [0, 6, 12, 18, 23].map(h => `<line x1="${x(h)}" x2="${x(h)}" y1="${y(100)}" y2="${y(0)}" stroke="${C.line}" stroke-width="1"/>`).join("");
-  const xl = [0, 6, 12, 18].map(h => `<text x="${x(h)}" y="${H - afs * 0.3}" fill="${C.sub}" font-size="${afs}" text-anchor="${h === 0 ? "start" : "middle"}">${h}시</text>`).join("");
+  const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${f(W - padR)}" y1="${f(y(v))}" y2="${f(y(v))}"/>`).join("")
+    + [0, 6, 12, 18, 23].map(h => `<line x1="${f(x(h))}" x2="${f(x(h))}" y1="${f(y(100))}" y2="${f(y(0))}"/>`).join("");
+  const xl = [0, 6, 12, 18].map(h => `<text x="${f(x(h))}" y="${f(H - 4)}"${h === 0 ? "" : ` text-anchor="middle"`}>${h}시</text>`).join("");
 
-  // 지나간 시간은 흐리게: 현재 시각 기준으로 잘라서 두 번 그림
   const cut = nowH != null ? x(Math.min(23, nowH)) : padL;
   const nowLine = nowH != null
-    ? `<line x1="${cut}" x2="${cut}" y1="${padT}" y2="${y(0)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="4 4" opacity=".55"/>`
+    ? `<line x1="${f(cut)}" x2="${f(cut)}" y1="${f(y(100))}" y2="${f(y(0))}" stroke="${C.sub}" stroke-width="1.5" stroke-dasharray="3 4"/>`
     : "";
+  const half = 39;                                   // 최고점 라벨 반폭 추정 → 그래프 밖으로 안 나가게
   const peak = max > 0
-    ? `<circle cx="${pts[mi][0]}" cy="${pts[mi][1]}" r="${fs * 0.32}" fill="${C.rain}"/>`
-      + `<text x="${Math.min(W - padR - pfs * 2.8, Math.max(padL + pfs * 2.8, pts[mi][0]))}" y="${pts[mi][1] - pfs * 0.7}" fill="${C.text}" font-size="${pfs}" font-weight="700" text-anchor="middle">${hours[mi]}시 ${max}%</text>`
+    ? `<circle cx="${f(pts[mi][0])}" cy="${f(pts[mi][1])}" r="6" fill="${C.blue}" stroke="${C.card}" stroke-width="2"/>`
+      + `<text x="${f(Math.min(W - padR - half, Math.max(padL + half, pts[mi][0])))}" y="${f(pts[mi][1] - 11)}" fill="${C.text}" font-size="14" font-weight="700" text-anchor="middle" ${FONT}>${hours[mi]}시 ${max}%</text>`
     : "";
 
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="시간별 강수확률 그래프${max > 0 ? `, ${hours[mi]}시 ${max}%가 최고` : ""}">
     <defs>
-      <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.rain}" stop-opacity=".35"/><stop offset="1" stop-color="${C.rain}" stop-opacity="0"/></linearGradient>
-      <clipPath id="past"><rect x="0" y="0" width="${cut}" height="${H}"/></clipPath>
-      <clipPath id="future"><rect x="${cut}" y="0" width="${W - cut}" height="${H}"/></clipPath>
+      <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.blue}" stop-opacity=".55"/><stop offset="1" stop-color="${C.blue}" stop-opacity="0"/></linearGradient>
+      <clipPath id="past"><rect x="0" y="0" width="${f(cut)}" height="${H}"/></clipPath>
+      <clipPath id="future"><rect x="${f(cut)}" y="0" width="${f(W - cut)}" height="${H}"/></clipPath>
     </defs>
-    ${grid}${xl}
-    <g clip-path="url(#future)"><path d="${area}" fill="url(#rg)"/><path d="${path}" fill="none" stroke="${C.rain}" stroke-width="${Math.max(3, fs * 0.16)}" stroke-linejoin="round"/></g>
-    <g clip-path="url(#past)" opacity=".35"><path d="${path}" fill="none" stroke="${C.sub}" stroke-width="${Math.max(2, fs * 0.12)}"/></g>
+    <g stroke="${C.line}" stroke-width="1">${grid}</g>
+    <g fill="${C.sub}" font-size="14" font-weight="500" ${FONT}>${xl}</g>
+    <g clip-path="url(#future)"><path d="${area}" fill="url(#rg)"/><path d="${path}" fill="none" stroke="${C.blue}" stroke-width="3" stroke-linejoin="round"/></g>
+    <g clip-path="url(#past)" opacity=".5"><path d="${path}" fill="none" stroke="${C.sub}" stroke-width="2.5"/></g>
     ${nowLine}${peak}
   </svg>`;
 }
 
-/* ---------- 미세먼지 ---------- */
+/* ---------- 미세먼지 (기준: PM2.5 15·35·75 / PM10 30·80·150) ---------- */
 function grade(v, cuts) {
   if (v <= cuts[0]) return ["좋음", "var(--good)"];
   if (v <= cuts[1]) return ["보통", "var(--ok)"];
   if (v <= cuts[2]) return ["나쁨", "var(--bad)"];
   return ["매우나쁨", "var(--worst)"];
 }
+let airBusy = false;
 async function updateAir() {
+  if (airBusy) return;
+  airBusy = true;
   const { lat, lon } = CONFIG.LOCATION;
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5&timezone=${encodeURIComponent(TZ)}`;
   try {
     const d = await fetchJSON(url);
-    const [g25, c25] = grade(Math.round(d.current.pm2_5), [15, 35, 75]);
-    const [g10, c10] = grade(Math.round(d.current.pm10), [30, 80, 150]);
+    const v25 = d.current && d.current.pm2_5, v10 = d.current && d.current.pm10;
+    if (v25 == null || v10 == null) throw new Error("empty");   // 값이 비어 오면 '좋음'으로 잘못 보이지 않게 실패 처리
+    const [g25, c25] = grade(Math.round(v25), [15, 35, 75]);
+    const [g10, c10] = grade(Math.round(v10), [30, 80, 150]);
     $("w-air").innerHTML = `<span>미세</span><b style="color:${c10}">${g10}</b><span>초미세</span><b style="color:${c25}">${g25}</b>`;
     setStatus("a", "");
   } catch (e) {
     setStatus("a", "미세먼지 갱신 실패");
+  } finally {
+    airBusy = false;
   }
 }
 
-/* ---------- 시세 위젯 ---------- */
+/* ---------- 시세 위젯 (TradingView) ---------- */
 function tvTile(src, config, kind) {
   const tile = document.createElement("div");
   tile.className = "tile" + (kind === "screener" ? " screener" : "");
@@ -716,75 +589,69 @@ function tvTile(src, config, kind) {
   tile.querySelector(".tradingview-widget-container").append(s);
   return tile;
 }
+// 무대 크기가 고정이라 배율은 무대 기준 카드 크기로만 계산 (창 배율은 무대 확대가 처리)
 function fitTiles() {
-  // 화면 높이에 비례한 배율 → 어느 기기에서든 같은 비율로 보임
-  const T = CONFIG.TV, base = window.innerHeight / T.REF_HEIGHT;
   document.querySelectorAll(".tile").forEach(t => {
-    if (t.dataset.kind === "screener") {
-      // 원하는 열까지만 보이도록: 폭·높이 둘 다 칸 안에 들어가는 배율로 맞추고, 그 폭만큼만 보여줌
-      const S = CONFIG.SCREENER;
-      const zW = t.clientWidth / S.VISIBLE_W;
-      const zR = t.clientHeight / (S.HEAD_PX + S.ROW_PX * CONFIG.GROUP.SHOW_ROWS);
-      let z = Math.max(0.5, S.FIT === "rows" ? Math.min(base * T.ZOOM_GROUP, zW, zR) : zW);
-      const W = t.clientWidth, H = t.clientHeight, rowsAt = (zz) => Math.max(1, Math.floor((H / zz - S.HEAD_PX) / S.ROW_PX));
-      let rows = Math.min(rowsAt(z), CONFIG.GROUP.SHOW_ROWS);
-      // 폭에 맞추면 아래에 한 줄이 채 안 되는 빈칸이 남을 수 있음(화면 높이에 따라 0~1줄).
-      // 한 줄 더 넣으려고 살짝 줄였을 때 버려지는 면적(좌우 여백)이 아래 빈칸보다 작으면 그쪽을 택함.
-      if (S.FIT !== "rows" && rows < CONFIG.GROUP.SHOW_ROWS) {
-        const z2 = H / (S.HEAD_PX + S.ROW_PX * (rows + 1));
-        const wasteNow = (H - (S.HEAD_PX + S.ROW_PX * rows) * z) * W;
-        const waste2 = (W - S.VISIBLE_W * z2) * H;
-        if (z2 >= 0.5 && waste2 < wasteNow) { z = z2; rows += 1; }
-      }
-      t.style.setProperty("--z", z.toFixed(3));
-      const clip = t.querySelector(".clip");
-      clip.style.width = `${S.VISIBLE_W * z}px`;
-      // 반쯤 잘린 줄이 보이지 않게, 다 들어가는 줄까지만 보여줌
-      clip.style.height = `${(S.HEAD_PX + S.ROW_PX * rows) * z}px`;
-      clip.querySelector(".tv-inner").style.width = `${S.INNER_W}px`;
-      return;
+    if (t.dataset.kind !== "screener") { t.style.setProperty("--z", Math.max(0.5, CONFIG.ZOOM_STOCK).toFixed(3)); return; }
+    // 원하는 열까지만 보이도록: 폭(또는 줄 수)에 맞는 배율로 그리고, 그 폭만큼만 잘라서 보여줌
+    const S = CONFIG.SCREENER, W = t.clientWidth, H = t.clientHeight;
+    if (!W || !H) return;
+    const zW = W / S.VISIBLE_W, zR = H / (S.HEAD_PX + S.ROW_PX * S.SHOW_ROWS);
+    let z = Math.max(0.5, S.FIT === "rows" ? Math.min(zW, zR) : zW);
+    const rowsAt = (zz) => Math.max(1, Math.floor((H / zz - S.HEAD_PX) / S.ROW_PX));
+    let rows = Math.min(rowsAt(z), S.SHOW_ROWS);
+    // 폭에 맞추면 아래에 한 줄이 채 안 되는 빈칸이 남을 수 있음 → 한 줄 더 넣으려고 줄였을 때
+    // 버려지는 면적(좌우 여백)이 아래 빈칸보다 작으면 그쪽을 택함
+    if (S.FIT !== "rows" && rows < S.SHOW_ROWS) {
+      const z2 = H / (S.HEAD_PX + S.ROW_PX * (rows + 1));
+      const wasteNow = (H - (S.HEAD_PX + S.ROW_PX * rows) * z) * W;
+      const waste2 = (W - S.VISIBLE_W * z2) * H;
+      if (z2 >= 0.5 && waste2 < wasteNow) { z = z2; rows += 1; }
     }
-    let z = base * (t.dataset.kind === "group" ? T.ZOOM_GROUP : T.ZOOM_STOCK);
-    if (t.dataset.kind === "group") {
-      // 목록이 칸 안에 다 들어가도록 필요하면 줄임
-      const need = T.GROUP_HEAD_PX + T.GROUP_ROW_PX * CONFIG.GROUP.symbols.length;
-      z = Math.min(z, t.clientHeight / need);
-    }
-    t.style.setProperty("--z", Math.max(0.5, z).toFixed(3));
+    t.style.setProperty("--z", z.toFixed(3));
+    const clip = t.querySelector(".clip");
+    clip.style.width = `${S.VISIBLE_W * z}px`;
+    clip.style.height = `${(S.HEAD_PX + S.ROW_PX * rows) * z}px`;   // 반쯤 잘린 줄은 안 보이게
+    clip.querySelector(".tv-inner").style.width = `${S.INNER_W}px`;
   });
 }
 function buildMarkets() {
   const rs = $("row-stocks"), rg = $("row-group");
   if (rs.childElementCount && rg.childElementCount) return;   // 이미 그려져 있으면 그대로 둠
   rs.innerHTML = ""; rg.innerHTML = "";
-  rs.style.gridTemplateColumns = `repeat(${CONFIG.STOCKS.length}, 1fr)`;
   CONFIG.STOCKS.forEach(([sym, name]) => rs.append(tvTile("embed-widget-symbol-overview.js", {
     symbols: [[name, `${sym}|1D`]], chartOnly: false, width: "100%", height: "100%", autosize: true,
-    locale: "kr", colorTheme: "dark", isTransparent: true, showVolume: false, showMA: false,
+    colorTheme: "dark", isTransparent: true, showVolume: false, showMA: false,
     hideDateRanges: true, hideMarketStatus: false, hideSymbolLogo: false, scalePosition: "right",
     scaleMode: "Normal", noTimeScale: false, valuesTracking: "1", changeMode: "price-and-percent",
     chartType: "area", lineWidth: 2, lineType: 0, dateRanges: ["1d|1"],
   }, "stock")));
-  rg.style.gridTemplateColumns = "1fr";
-  rg.append(CONFIG.GROUP.MODE === "auto"
-    ? tvTile("embed-widget-screener.js", {
-        width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "most_capitalized",
-        market: "america", showToolbar: false, colorTheme: "dark", isTransparent: true,
-      }, "screener")
-    : tvTile("embed-widget-market-overview.js", {
-        colorTheme: "dark", dateRange: "1D", showChart: false, locale: "kr", width: "100%", height: "100%",
-        largeChartUrl: "", isTransparent: true, showSymbolLogo: true, showFloatingTooltip: false,
-        tabs: [{ title: CONFIG.GROUP.title, symbols: CONFIG.GROUP.symbols.map(([s, d]) => ({ s, d })) }],
-      }, "group"));
+  rg.append(tvTile("embed-widget-screener.js", {
+    width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "most_capitalized",
+    market: "america", showToolbar: false, colorTheme: "dark", isTransparent: true,
+  }, "screener"));
   fitTiles();
+  checkMarkets();
 }
-function clearMarkets() { $("row-stocks").innerHTML = ""; $("row-group").innerHTML = ""; }
+function clearMarkets() { $("row-stocks").innerHTML = ""; $("row-group").innerHTML = ""; clearTimeout(marketCheck); }
+
+// 네트워크 문제로 위젯 스크립트가 못 들어오면 빈 카드로 남음 → 위젯(iframe)이 안 생긴 카드만 다시 그림
+let marketCheck = null;
+function checkMarkets(attempt = 1) {
+  clearTimeout(marketCheck);
+  marketCheck = setTimeout(() => {
+    if (body.classList.contains("clockmode") && isNight()) return;           // 밤 시계 모드에서는 위젯을 내려 둠
+    const empty = [...document.querySelectorAll(".tile")].filter(t => !t.querySelector("iframe"));
+    if (!empty.length) return;
+    clearMarkets(); buildMarkets();
+    if (attempt < 3) checkMarkets(attempt + 1);
+  }, 30000 * attempt);
+}
 
 /* ---------- 시계 모드 ----------
    - 야간(00~06시): 자동으로 시계 모드. 누르면 원래 화면 → IDLE_SEC초 동안 안 만지면 다시 시계 모드
    - 06시가 되면 자동 시계 모드는 풀림 (낮에 큰 시계를 눌러 켠 시계 모드는 누를 때까지 유지)
    - 상태는 body의 class/data 값으로 판단 (clockmode = 시계 모드 중, data-clock = auto/manual) */
-const body = document.body;
 const isNight = () => {
   const k = partsIn(TZ).mins, s = toMins(CONFIG.NIGHT.start), e = toMins(CONFIG.NIGHT.end);
   return s < e ? (k >= s && k < e) : (k >= s || k < e);
@@ -794,11 +661,11 @@ function armIdle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => { idleTimer = null; if (isNight()) enterClock("auto"); }, CONFIG.NIGHT.IDLE_SEC * 1000);
 }
-// 모션의 기준점: 기본 화면 큰 시계의 중심 → 그 자리에서 커지고, 그 자리로 줄어듦
+// 모션 기준점: 기본 화면 큰 시계의 중심 (무대 좌표)
 function setMotionOrigin() {
-  const r = $("clock").getBoundingClientRect();
-  if (!r.width) return;                                // 화면에 안 보일 때는 이전 값 유지
-  const ox = `${r.left + r.width / 2}px`, oy = `${r.top + r.height / 2}px`;
+  const r = $("clock").getBoundingClientRect(), st = $("stage").getBoundingClientRect();
+  if (!r.width) return;
+  const ox = `${(r.left + r.width / 2 - st.left) / stageScale}px`, oy = `${(r.top + r.height / 2 - st.top) / stageScale}px`;
   [$("clockview"), $("app")].forEach(el => { el.style.setProperty("--ox", ox); el.style.setProperty("--oy", oy); });
 }
 function enterClock(reason) {
@@ -807,7 +674,7 @@ function enterClock(reason) {
   renderAnalog();
   body.classList.add("clockmode");
   body.dataset.clock = reason;
-  // 밤에는 시세 위젯을 내려서 CPU 절약 — 모션이 끝난 뒤, 그때도 시계 모드일 때만
+  // 밤에는 시세 위젯을 내려서 CPU 절약 — 모션이 끝난 뒤(0.7초), 그때도 시계 모드일 때만
   setTimeout(() => { if (isNight() && body.classList.contains("clockmode")) clearMarkets(); }, 700);
 }
 function exitClock() {
@@ -820,7 +687,6 @@ function exitClock() {
 }
 function applyNight() {
   const night = isNight();
-  body.classList.toggle("night", night);
   const inClock = body.classList.contains("clockmode");
   if (night && !inClock && !idleTimer) enterClock("auto");                 // 밤인데 아무도 안 보고 있으면 시계 모드
   if (!night && inClock && body.dataset.clock === "auto") exitClock();      // 아침이 되면 자동 시계 모드 해제
@@ -828,26 +694,25 @@ function applyNight() {
 }
 $("clockview").addEventListener("click", exitClock);
 // 큰 시계를 누르면 시계 모드 (밤에 누른 경우는 자동 모드로 취급해서 06시에 같이 풀림)
-document.querySelector(".time").addEventListener("click", () => enterClock(isNight() ? "auto" : "manual"));
+$("clock-set").addEventListener("click", () => enterClock(isNight() ? "auto" : "manual"));
 // 밤에 원래 화면을 보는 중이면, 만질 때마다 15초를 다시 셈
 document.addEventListener("pointerdown", () => { if (isNight() && !body.classList.contains("clockmode")) armIdle(); }, true);
 
-/* 원형 시계: 눈금·바늘 모양은 한 번만 그리고, 회전만 갱신
-   - 시침·분침: 끝이 가늘어지는 칼날형(리프) 바늘
-   - 초침: 가는 강조색 바늘 + 반대쪽 균형추 + 가운데 링 캡 */
+/* 원형 시계: 눈금·바늘 모양은 한 번만 그리고 회전만 갱신
+   - 판: 시트색 원 / 큰 눈금 글자색 2.6 · 작은 눈금 비활성색 1
+   - 시침·분침: 칼날형 / 초침: 연세 블루 + 균형추 + 가운데 링 캡 */
 function renderAnalog() {
   const svg = $("analog");
   if (!svg.childElementCount) {
     let ticks = "";
     for (let i = 0; i < 60; i++) {
       const major = i % 5 === 0, a = i * 6 * Math.PI / 180, r1 = major ? 78 : 87, r2 = 92;
-      ticks += `<line class="tk${major ? " major" : ""}" stroke-width="${major ? 2.6 : 1}" x1="${100 + r1 * Math.sin(a)}" y1="${100 - r1 * Math.cos(a)}" x2="${100 + r2 * Math.sin(a)}" y2="${100 - r2 * Math.cos(a)}"/>`;
+      ticks += `<line class="tk${major ? " major" : ""}" stroke-width="${major ? 2.6 : 1}" x1="${(100 + r1 * Math.sin(a)).toFixed(2)}" y1="${(100 - r1 * Math.cos(a)).toFixed(2)}" x2="${(100 + r2 * Math.sin(a)).toFixed(2)}" y2="${(100 - r2 * Math.cos(a)).toFixed(2)}"/>`;
     }
     svg.innerHTML = `<circle class="face" cx="100" cy="100" r="97"/>${ticks}`
-      + `<path class="hh" d="M100 114 L96.2 100 L98.4 50 L100 46 L101.6 50 L103.8 100 Z"/>`      // 시침: 짧고 굵은 칼날형
-      + `<path class="mh" d="M100 116 L97.4 100 L99.1 22 L100 18 L100.9 22 L102.6 100 Z"/>`     // 분침: 길고 가는 칼날형
-      + `<g class="sh"><line x1="100" y1="124" x2="100" y2="16" stroke-width="1.2"/>`             // 초침
-      + `<circle cx="100" cy="122" r="3.4"/></g>`                                                // 초침 균형추
+      + `<path class="hh" d="M100 114 L96.2 100 L98.4 50 L100 46 L101.6 50 L103.8 100 Z"/>`
+      + `<path class="mh" d="M100 116 L97.4 100 L99.1 22 L100 18 L100.9 22 L102.6 100 Z"/>`
+      + `<g class="sh"><line x1="100" y1="124" x2="100" y2="16" stroke-width="1.2"/><circle cx="100" cy="122" r="3.4"/></g>`
       + `<circle class="cap" cx="100" cy="100" r="3.6"/>`;
   }
   const now = new Date(), p = partsIn(TZ, now), sec = now.getSeconds();
@@ -855,8 +720,9 @@ function renderAnalog() {
   svg.querySelector(".hh").style.transform = `rotate(${hDeg}deg)`;
   svg.querySelector(".mh").style.transform = `rotate(${mDeg}deg)`;
   svg.querySelector(".sh").style.transform = `rotate(${sec * 6}deg)`;
+  svg.setAttribute("aria-label", `아날로그 시계 ${p.h % 12 || 12}시 ${p.m}분`);
   $("digital").textContent = `${pad(p.h)}:${pad(p.m)}`;
-  if ($("cv-date").innerHTML !== $("date").innerHTML) $("cv-date").innerHTML = $("date").innerHTML;
+  if ($("cv-date").textContent !== $("date").textContent) $("cv-date").textContent = $("date").textContent;
   renderCalendar(p.ymd);
 }
 
@@ -871,41 +737,54 @@ function renderCalendar(ymd) {
   html += "<div></div>".repeat(first);
   for (let d = 1; d <= days; d++) {
     const dow = (first + d - 1) % 7;
-    const cls = d === today ? "today" : dow === 0 ? "sun" : dow === 6 ? "sat" : "";
+    const cls = d === today ? "today" : (dow === 0 || dow === 6) ? "we" : "";
     html += `<div class="d ${cls}">${d}</div>`;
   }
   cal.innerHTML = html;
 }
 
-/* ---------- 메모, 화면 유지 ---------- */
-function rotateMemo() {
-  const list = CONFIG.MEMO.filter(Boolean), el = $("memo");
-  if (!list.length) { el.textContent = ""; syncFooter(); return; }
-  const next = (Number(el.dataset.i ?? -1) + 1) % list.length;
-  el.dataset.i = next; el.textContent = list[next];
-  syncFooter();
-}
+/* ---------- 화면 유지 ---------- */
+let wakeSentinel = null;
 async function keepAwake() {
-  try { if ("wakeLock" in navigator && document.visibilityState === "visible") await navigator.wakeLock.request("screen"); } catch (e) {}
+  try {
+    if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+    if (wakeSentinel && !wakeSentinel.released) return;
+    wakeSentinel = await navigator.wakeLock.request("screen");
+  } catch (e) {}
 }
+// 처음 화면을 만질 때도 한 번 더 요청 (일부 Safari는 사용자 동작이 있어야 허용)
+document.addEventListener("pointerdown", keepAwake, { once: true, capture: true });
 
 /* ---------- 시작 ---------- */
-function tick() { renderClock(); renderSessions(); applyNight(); }
-tick(); updateWeather(); updateAir(); rotateMemo(); keepAwake();
+let lastDefaultView = null;
+function tick() {
+  renderClock(); renderSessions(); applyNight();
+  // 18시(오늘→내일)·자정(날짜 바뀜) 경계를 넘으면 5분 주기를 기다리지 않고 바로 날씨 카드 갱신
+  const key = defaultView() + partsIn(TZ).ymd;
+  if (lastDefaultView !== null && key !== lastDefaultView && !dayPeek) {
+    if ($("day").dataset.view !== defaultView()) swapDay(renderDay); else renderDay();
+  }
+  lastDefaultView = key;
+  if (!wakeSentinel || wakeSentinel.released) keepAwake();    // 시스템이 화면 유지를 풀었으면 다시 요청
+}
+tick(); updateWeather(); updateAir(); keepAwake();
 setInterval(tick, 15 * 1000);
-// 시계: '1초마다'가 아니라 '다음 초가 바뀌는 순간'에 맞춰 갱신 → 실제 시각보다 늦게 넘어가지 않음
-// 매번 다음 초 경계(+15ms 여유)를 새로 계산하므로, 아이패드가 바빠서 한 번 밀려도 늦음이 쌓이지 않음
+// 시계: '다음 초가 바뀌는 순간'(+15ms 여유)에 맞춰 갱신 → 밀려도 늦음이 쌓이지 않음
 function secondTick() {
-  const p = partsIn(TZ), hm = `${pad(p.h)}:${pad(p.m)}`;
-  if ($("clock").textContent !== hm) renderClock();
-  if (body.classList.contains("clockmode")) renderAnalog();
-  setTimeout(secondTick, 1000 - (Date.now() % 1000) + 15);
+  try {
+    const p = partsIn(TZ), hm = `${pad(p.h)}:${pad(p.m)}`;
+    if ($("clock").textContent !== hm) renderClock();
+    if (body.classList.contains("clockmode")) renderAnalog();
+  } catch (e) {
+    // 한 번 실패해도 다음 초에 다시 시도 (예외로 고리가 끊겨 시계가 멈추는 것 방지)
+  } finally {
+    setTimeout(secondTick, 1000 - (Date.now() % 1000) + 15);
+  }
 }
 secondTick();
 setInterval(renderDay, 5 * 60 * 1000);                       // '지금' 선 이동, 오늘→내일 전환
 setInterval(updateWeather, CONFIG.REFRESH_WEATHER_MIN * 60 * 1000);
 setInterval(updateAir, CONFIG.REFRESH_WEATHER_MIN * 60 * 1000);
-setInterval(rotateMemo, 30 * 1000);
 async function safeReload() {
   try {
     const r = await fetch(location.href.split("#")[0], { cache: "no-store", method: "HEAD" });
@@ -917,29 +796,30 @@ setTimeout(safeReload, CONFIG.RELOAD_PAGE_HOURS * 3600 * 1000);
 
 /* ---------- 새 버전 자동 반영 ----------
    GitHub에 올라간 이 파일을 다시 받아서, 지금 화면의 스타일·스크립트와 내용이 다르면 새로고침.
-   - 주소 뒤에 ?v=시각을 붙여 GitHub 쪽 저장본(최대 10분)을 건너뛰고 최신 파일을 받음
-   - 줄바꿈 방식(윈도우 CRLF / 맥·리눅스 LF) 차이는 같은 것으로 취급
-   - 받기에 실패하면(인터넷 끊김 등) 아무것도 하지 않음 → 오류 화면에 갇히지 않음 */
+   - ?v=시각을 붙여 GitHub 쪽 저장본(최대 10분)을 건너뜀
+   - 줄바꿈 방식(CRLF / LF) 차이는 같은 것으로 취급
+   - 받기에 실패하면 아무것도 하지 않음 */
 const norm = (t) => (t || "").replace(/\r\n?/g, "\n").trim();
 const mySig = norm($("main-css").textContent) + "|" + norm($("main-js").textContent);
 async function checkUpdate() {
-  if (location.protocol === "file:") return;                       // 컴퓨터에서 파일로 직접 연 경우는 건너뜀
+  if (location.protocol === "file:") return;
   try {
     const r = await fetch(`${location.pathname}?v=${Date.now()}`, { cache: "no-store" });
     if (!r.ok) return;
     const html = await r.text();
     const css = html.match(/<style id="main-css">([\s\S]*?)<\/style>/), js = html.match(/<script id="main-js">([\s\S]*?)<\/script>/);
-    if (!css || !js) return;                                       // 형식이 다른 파일이면 건드리지 않음
-    if (norm(css[1]) + "|" + norm(js[1]) !== mySig) location.replace(`${location.pathname}?v=${Date.now()}`);
+    if (!css || !js) return;
+    if (norm(css[1]) + "|" + norm(js[1]) === mySig) return;
+    let last = 0;
+    try { last = Number(sessionStorage.getItem("dash-upd") || 0); } catch (e) {}
+    if (Date.now() - last < 10 * 60 * 1000) return;                // 10분 안에 이미 바꿔 봤으면 건너뜀 (새로고침 반복 방지)
+    try { sessionStorage.setItem("dash-upd", String(Date.now())); } catch (e) {}
+    location.replace(`${location.pathname}?v=${Date.now()}`);
   } catch (e) {}
 }
 setInterval(checkUpdate, CONFIG.UPDATE_CHECK_MIN * 60 * 1000);
-// 화면 높이 단위: CSS의 vh 대신 실제 보이는 창 높이(innerHeight)로 계산
-// 아이패드 홈 화면 앱에서는 100vh와 실제 창 높이가 달라, 아래에 빈칸이 남거나 스크립트 계산(innerHeight 기준)과 어긋날 수 있음
-window.addEventListener("resize", () => { setVh(); fitTiles(); fitClockSet(); });
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitClockSet);
+window.addEventListener("resize", () => { fitStage(); fitTiles(); });
 if ("ResizeObserver" in window) new ResizeObserver(() => lastRain && drawRainChart(...lastRain)).observe($("rain-chart"));
-else window.addEventListener("resize", renderDay);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { checkUpdate(); tick(); keepAwake(); updateWeather(); updateAir(); } });
 </script>
 </body>
