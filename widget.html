@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="대시보드">
+<title>대시보드</title>
+<style>
+  /* =====================================================================
+     디자인 규칙 (2~3m 거리 기준)
+     - 글씨는 3단계: XL(시계) / L(최고·최저·강수) / S(라벨 2.8vh 이상)
+     - 색은 의미가 있을 때만: 빨강=최고, 파랑=최저·강수, 초록/주황=장 상태
+     - 왼쪽 = 시간·날씨, 오른쪽 = 시장
+     ===================================================================== */
+  :root{
+    --bg:#0a0c0f; --card:#13161b; --line:#1f242b;
+    --text:#eef1f5; --sub:#8c96a3; --dim:#4f5865;
+    --hot:#ff7a6b; --cold:#6cbcff; --rain:#6cbcff;
+    --good:#4aa8ff; --ok:#3ecf8e; --bad:#ffa53d; --worst:#ff5d5d;
+    --open:#3ecf8e; --ext:#ffb547; --closed:#4f5865;
+    --r:2.2vh;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+  .label{font-size:2.8vh;color:var(--sub);font-weight:500}
+
+  /* 레이아웃: 2단 × 2층. 위층(시계 | 장 상태+차트)과 아래층(날씨 | 시총)이 좌우 같은 높이에서 끊김 */
+  #app{position:absolute;inset:0;padding:3vh 2.6vw 2.6vh;display:grid;gap:2.2vh 2.4vw;
+    grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:29vh minmax(0,1fr) auto;
+    grid-template-areas:"clock mtop" "weather mbody" "foot foot"}
+  .a-clock{grid-area:clock;display:flex;align-items:center;justify-content:center;min-height:0}
+  .a-mtop{grid-area:mtop;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.2vh;min-width:0;min-height:0}
+  .a-weather{grid-area:weather;display:grid;grid-template-rows:auto minmax(0,1fr);gap:2.2vh;min-width:0;min-height:0}
+  .a-mbody{grid-area:mbody;display:grid;min-width:0;min-height:0}
+
+  /* ===== 시계 ===== */
+  .time{display:inline-flex;flex-direction:column;align-items:flex-end}
+  #clock{font-size:18vh;font-weight:600;line-height:.9;margin-left:-.3vw}
+  .dateline{display:flex;gap:1.4vw;align-items:baseline;flex-wrap:wrap;justify-content:flex-end;margin-top:1vh;font-size:3.8vh;color:var(--sub);font-weight:500}
+  #ddays b{color:var(--cold);font-weight:700;margin-left:.4vw}
+
+  /* 현재 날씨: [아이콘 기온] [지역 / 미세먼지]를 한 덩어리로 카드 가운데에 모음 */
+  .now{display:flex;align-items:center;justify-content:center;gap:2.6vw;min-width:0;background:var(--card);border-radius:var(--r);padding:1.2vh 1.6vw}
+  .now-l{display:flex;align-items:center;gap:1.2vw}
+  .now-r{display:flex;flex-direction:column;align-items:flex-start;gap:.5vh;min-width:0}
+  #w-icon{width:7vh;height:7vh;flex:none}
+  #w-temp{font-size:7.5vh;font-weight:600;line-height:1;flex:none;padding-right:.35em}   /* 오른쪽 여백 = 매달린 '°' 자리 */
+  #w-air{font-size:3vh;color:var(--sub);display:flex;flex-direction:column;align-items:flex-start;gap:.2vh;white-space:nowrap}
+  #w-air b{font-weight:700}
+
+  .day{background:var(--card);border-radius:var(--r);padding:1.8vh 1.6vw 1.4vh;display:grid;
+    grid-template-rows:auto auto 1fr;gap:1.2vh;min-height:0}
+  .day-head{display:flex;justify-content:space-between;align-items:baseline}
+  #day-title{font-size:3.6vh;font-weight:700;display:flex;align-items:center;gap:.8vw}
+  #day-title .emo{font-size:1.1em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+  #day-title .tmr{font-size:2.4vh;font-weight:600;color:var(--bg);background:var(--sub);border-radius:99px;padding:.3vh .8vw}
+  #rain-head.none{color:var(--text);font-weight:600;font-size:2.6vh;padding:.5vh 1.2vw .5vh 3.4vh;border-radius:99px;position:relative;
+    background:rgba(108,188,255,.12);border:1px solid rgba(108,188,255,.35)}
+  #rain-head.none::before{content:"";position:absolute;left:1.4vh;top:50%;width:.9vh;height:.9vh;margin-top:-.45vh;border-radius:50%;background:var(--rain)}
+  /* 1층: 기온 — 최저 ━━ 최고 (가운데 막대로 '범위'임을 표현) */
+  /* 최저 | 최고: 같은 폭 두 칸 + 가는 세로 구분선 (위 현재 기온 카드와 같은 분할 방식) */
+  .temps{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center}
+  .temps .t{display:flex;flex-direction:column;align-items:center;gap:.2vh}
+  .temps .vline{align-self:stretch;background:var(--line);margin:.8vh 0}
+  .temps .v{font-size:8.4vh;font-weight:600;line-height:1.05}
+  /* '°'는 폭 계산에서 빼서 숫자만 가운데 정렬되게 (오른쪽에 매달기) */
+  .deg{position:relative;display:inline-block;width:0;height:1em;vertical-align:top;overflow:visible}
+  .deg::after{content:"°";position:absolute;left:0;top:0}
+  #d-max{color:var(--hot)} #d-min{color:var(--cold)}
+  /* 2층: 강수 — 숫자와 그래프를 한 묶음으로, 기온보다 한 단계 작게 */
+  .rain-sec{display:grid;grid-template-columns:auto 1fr;gap:1.4vw;border-top:1px solid var(--line);padding-top:1.4vh;min-height:0}
+  .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-width:12vh;padding-right:1.6vh}
+  #d-rain{font-size:6.4vh;font-weight:600;line-height:1.05;color:var(--rain)}
+  /* '%'는 '°'처럼 폭에서 빼서 숫자만 가운데 정렬 */
+  .hang{position:relative;display:inline-block;width:0;height:0}
+  .hang small{position:absolute;left:.08em;bottom:0;font-size:.47em;line-height:1}
+  #rain-chart{min-height:14vh;position:relative}
+  #rain-chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+
+  /* ===== 시장 ===== */
+  .sessions{display:flex;justify-content:center;gap:2.4vw;font-size:2.6vh;white-space:nowrap;overflow:hidden;min-width:0}
+  .sess{display:flex;align-items:center;gap:.6vw}
+  .sess .dot{width:1.4vh;height:1.4vh;border-radius:50%;flex:none;background:var(--closed)}
+  .sess .name{color:var(--sub)}
+  .sess .state{font-weight:700}
+  .sess .until{color:var(--sub)}
+  .sess .until:not(:empty)::before{content:"· "}
+  .sess.open .dot{background:var(--open);box-shadow:0 0 1.2vh var(--open)}
+  .sess.ext .dot{background:var(--ext);box-shadow:0 0 1.2vh var(--ext)}
+
+  .row{display:grid;gap:1vw;min-height:0}
+  .tile{background:var(--card);border-radius:var(--r);overflow:hidden;position:relative;min-height:0;min-width:0}
+  /* 위젯 확대: 배율(--z)은 칸 크기에 맞춰 스크립트가 자동 계산 */
+  .tv-inner{position:absolute;left:0;top:0;width:calc(100% / var(--z,1));height:calc(100% / var(--z,1));
+    transform:scale(var(--z,1));transform-origin:0 0}
+  .tile.screener{display:flex;align-items:center;justify-content:center}   /* 잘라 낸 표를 칸 정가운데에 */
+  .clip{position:relative;overflow:hidden;flex:none}
+  .tv-inner .tradingview-widget-container,
+  .tv-inner .tradingview-widget-container__widget{width:100%;height:100%}
+
+  footer{grid-area:foot;display:flex;justify-content:space-between;gap:2vw;font-size:2.2vh;color:var(--bad)}
+  footer.empty{display:none}   /* 메모도 없고 오류도 없으면 줄 자체를 없앰 */
+  #memo{color:var(--sub);font-size:2.8vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* 세로 화면(또는 세로로 긴 창): 위아래로 쌓고 크기 줄임 */
+  @media (orientation: portrait){
+    #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:1.6vh;
+      grid-template-areas:"clock" "weather" "mtop" "mbody" "foot"}
+    .a-weather{gap:1.4vh} .a-mtop{min-height:22vh}
+    #clock{font-size:10vh} .dateline{font-size:2.8vh}
+    #w-icon{width:5.5vh;height:5.5vh} #w-temp{font-size:6vh}
+    .temps .v{font-size:6vh} #d-rain{font-size:4.6vh}
+    #rain-chart{min-height:15vh}
+  }
+
+  /* ===== 야간 모드 ===== */
+  body.night .a-weather,body.night .a-mtop,body.night .a-mbody,body.night footer,body.night #ddays{display:none}
+  body.night #app{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"clock"}
+  body.night #clock{color:#353c46;font-size:28vh}
+  body.night .dateline{color:#2a3038;justify-content:center}
+  #night-temp{display:none}
+  body.night #night-temp{display:inline}
+</style>
+</head>
+<body>
+<div id="app">
+  <section class="a-clock">
+    <div class="time">
+      <div id="clock" class="num">--:--</div>
+      <div class="dateline">
+        <span id="date">&nbsp;</span>
+        <span id="night-temp" class="num"></span>
+        <span id="ddays"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="a-weather">
+    <div class="now">
+      <div class="now-l">
+        <div id="w-icon"></div>
+        <div id="w-temp" class="num">--°</div>
+      </div>
+      <div class="now-r">
+        <div id="w-air">&nbsp;</div>
+      </div>
+    </div>
+
+    <div class="day" id="day">
+      <div class="day-head">
+        <div id="day-title">&nbsp;</div>
+        <div class="label" id="rain-head"></div>
+      </div>
+      <div class="temps">
+        <div class="t"><div class="label">최저</div><div id="d-min" class="v num">-</div></div>
+        <div class="vline"></div>
+        <div class="t"><div class="label">최고</div><div id="d-max" class="v num">-</div></div>
+      </div>
+      <div class="rain-sec">
+        <div class="rain-num"><div class="label">강수확률</div><div id="d-rain" class="num">-</div></div>
+        <div id="rain-chart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="a-mtop">
+    <div class="sessions">
+      <div class="sess" id="sess-kr"><span class="dot"></span><span class="name">국장</span><span class="state">-</span><span class="until num"></span></div>
+      <div class="sess" id="sess-us"><span class="dot"></span><span class="name">미장</span><span class="state">-</span><span class="until num"></span></div>
+    </div>
+    <div class="row" id="row-stocks"></div>
+  </section>
+
+  <section class="a-mbody">
+    <div class="row" id="row-group"></div>
+  </section>
+
+  <footer class="empty">
+    <div id="memo"></div>
+    <div id="status"></div>
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   설정 — 여기만 고치면 돼요
+   (GitHub Pages는 공개 페이지라서 보유 수량, 금액, 일정 같은 개인 정보는 넣지 마세요)
+   ===================================================================== */
+const CONFIG = {
+  // 위치 (기본: 성남시청). 서울시청은 37.5665, 126.9780
+  LOCATION: { name: "성남", lat: 37.4200, lon: 127.1267 },
+
+  // 이 시각 이후로는 날씨 칸이 '내일' 기준으로 바뀌어요
+  TOMORROW_FROM_HOUR: 18,
+
+  // D-day: date가 빈 칸이면 표시 안 함 (형식 "YYYY-MM-DD")
+  DDAYS: [
+    { label: "복무 종료", date: "" },
+  ],
+
+  // 하단 한 줄 메모: 빈 칸이면 표시 안 함. 여러 개면 30초마다 돌아가며 보여줘요
+  MEMO: [""],
+
+  // 야간 모드 (이 시간에는 시계만 어둡게 표시)
+  NIGHT: { start: "00:00", end: "06:00" },
+
+  // 위 줄 차트 (TradingView 심볼, 이름)
+  // 한국거래소(KRX) 종목은 TradingView 위젯에서 막혀 있어서 넣어도 안 나와요
+  STOCKS: [
+    ["AMEX:SPYM",     "SPYM"],
+    ["AMEX:XLV",      "XLV"],
+    ["FX_IDC:USDKRW", "USD/KRW"],       // 1달러당 원화
+  ],
+
+  // 아래 목록: 미국 시총 상위
+  // MODE "auto"  → TradingView 스크리너가 시총 순으로 자동 정렬 (순위 바뀌면 자동 반영)
+  // MODE "fixed" → 아래 symbols 순서 그대로 표시
+  GROUP: {
+    MODE: "auto",
+    SHOW_ROWS: 10,                      // 칸 안에 보이게 맞출 줄 수
+    title: "US 시총 상위 10",
+    symbols: [                          // MODE "fixed"일 때만 사용 (2026년 중반 순위)
+      ["NASDAQ:NVDA",  "NVIDIA"],
+      ["NASDAQ:GOOGL", "Alphabet"],
+      ["NASDAQ:AAPL",  "Apple"],
+      ["NASDAQ:MSFT",  "Microsoft"],
+      ["NASDAQ:SPCX",  "SpaceX"],
+      ["NASDAQ:AMZN",  "Amazon"],
+      ["NASDAQ:AVGO",  "Broadcom"],
+      ["NASDAQ:META",  "Meta"],
+      ["NASDAQ:TSLA",  "Tesla"],
+      ["NASDAQ:MU",    "Micron"],
+    ],
+  },
+
+  // 위젯 크기 조절
+  // - 화면 높이 834px(아이패드 에어 3 가로)을 기준으로 비례 확대/축소해서, 컴퓨터에서도 같은 비율로 보여요
+  // - ZOOM: 1보다 크면 글씨가 커지고, 작으면 작아져요
+  // - GROUP_ROW_PX / GROUP_HEAD_PX: 목록 한 줄 / 머리 부분의 위젯 원래 높이(px) 추정값.
+  //   목록이 아래에서 잘리면 값을 늘리고, 아래가 남으면 줄이세요
+  TV: { REF_HEIGHT: 834, ZOOM_STOCK: 1.0, ZOOM_GROUP: 1.0, GROUP_ROW_PX: 44, GROUP_HEAD_PX: 50 },
+
+  // 시세 위젯 언어: "en"(영어) / "kr"(한국어). 한국어는 번역이 어색해서 영어 권장
+  TV_LOCALE: "en",
+
+  // 스크리너(시총 자동 목록) 보이는 범위
+  // - 위젯 열은 지정할 수 없어서, 위젯을 넓게 그린 뒤 왼쪽 일부만 잘라서 보여줘요
+  // - VISIBLE_W: 위젯 원래 크기 기준으로 보여줄 폭(px). 'Technical Rating' 열 오른쪽 끝에 맞춘 값
+  //   열이 잘리면 늘리고, 다음 열(Volume)이 삐져나오면 줄이세요
+  // - INNER_W: 위젯을 그릴 전체 폭(px). 표 전체 폭보다 좁아야 열 너비가 늘어나지 않아요
+  // - ROW_PX / HEAD_PX: 한 줄 / 머리 부분 높이(px)
+  // - FIT: "width" → 칸 가로를 꽉 채움(글씨 큼, 보이는 줄 수는 높이에 맞춰 자동, 아이패드 약 8줄)
+  //        "rows"  → SHOW_ROWS 줄이 다 보이게 맞춤(글씨 작아지고 좌우 여백 생김)
+  SCREENER: { FIT: "width", VISIBLE_W: 505, INNER_W: 900, ROW_PX: 49, HEAD_PX: 48 },
+
+  REFRESH_WEATHER_MIN: 10,
+  REFRESH_AIR_MIN: 30,
+  RELOAD_PAGE_HOURS: 6,
+};
+
+/* ===================================================================== */
+const TZ = "Asia/Seoul";
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, "0");
+
+function partsIn(tz, d = new Date()) {
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false,
+    weekday: "short", hour: "2-digit", minute: "2-digit", year: "numeric", month: "2-digit", day: "2-digit" });
+  const o = Object.fromEntries(f.formatToParts(d).map(p => [p.type, p.value]));
+  const hour = Number(o.hour) % 24;
+  return { wd: o.weekday, h: hour, m: Number(o.minute), mins: hour * 60 + Number(o.minute),
+           ymd: `${o.year}-${o.month}-${o.day}` };
+}
+const toMins = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+// 남은 분 → 끝나는 시각(한국 시간)으로 표시
+const fmtLeft = (mins) => { const p = partsIn(TZ, new Date(Date.now() + mins * 60000)); return `${pad(p.h)}:${pad(p.m)}까지`; };
+
+// 실패하기 쉬운 요청: 최대 3회, 지연 후 재시도
+async function fetchJSON(url, tries = 3, delayMs = 3000) {
+  for (let i = 1; i <= tries; i++) {
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch (e) {
+      if (i === tries) throw e;
+      await new Promise(res => setTimeout(res, delayMs * i));
+    }
+  }
+}
+
+// 하단 줄: 평소엔 숨기고, 갱신 실패나 메모가 있을 때만 보임
+const statusMsgs = {};
+function setStatus(key, msg) {
+  statusMsgs[key] = msg;
+  $("status").textContent = Object.values(statusMsgs).filter(Boolean).join("  ·  ");
+  syncFooter();
+}
+const syncFooter = () => document.querySelector("footer").classList.toggle("empty", !$("status").textContent && !$("memo").textContent);
+
+/* ---------- 시계 ---------- */
+function renderClock() {
+  const now = new Date(), p = partsIn(TZ, now);
+  $("clock").textContent = `${pad(p.h)}:${pad(p.m)}`;
+  $("date").textContent = new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" }).format(now);
+  const today = new Date(p.ymd + "T00:00:00+09:00");
+  $("ddays").innerHTML = CONFIG.DDAYS.filter(d => d.label && d.date).map(d => {
+    const diff = Math.round((new Date(d.date + "T00:00:00+09:00") - today) / 86400000);
+    return `<span>${d.label}<b class="num">${diff > 0 ? "D-" + diff : diff === 0 ? "D-DAY" : "D+" + (-diff)}</b></span>`;
+  }).join("&nbsp;&nbsp;");
+}
+
+/* ---------- 장 상태 ----------
+   국장(KST): 08:00 프리마켓(NXT) → 09:00 정규장 → 15:30 애프터마켓(NXT) → 20:00 마감
+   미장(ET, 서머타임 자동): 04:00 프리 → 09:30 정규 → 16:00 애프터 → 20:00 데이마켓(주간거래) → 다음날 04:00
+   데이마켓은 일~목 20:00(ET)에 열려서 월~금 04:00(ET)까지. 공휴일은 반영 안 함 */
+function krSession() {
+  const p = partsIn(TZ);
+  if (["Sat", "Sun"].includes(p.wd)) return { cls: "", state: "휴장", end: null };
+  const t = p.mins, S = [["08:00", "09:00", "ext", "프리마켓"], ["09:00", "15:30", "open", "정규장"], ["15:30", "20:00", "ext", "애프터마켓"]];
+  for (const [a, b, cls, state] of S) if (t >= toMins(a) && t < toMins(b)) return { cls, state, end: toMins(b) - t };
+  return { cls: "", state: "장 마감", end: null };
+}
+function usSession() {
+  const p = partsIn("America/New_York"), t = p.mins, wd = p.wd;
+  const weekday = !["Sat", "Sun"].includes(wd);
+  if (weekday && t >= toMins("04:00") && t < toMins("09:30")) return { cls: "ext", state: "프리마켓", end: toMins("09:30") - t };
+  if (weekday && t >= toMins("09:30") && t < toMins("16:00")) return { cls: "open", state: "정규장", end: toMins("16:00") - t };
+  if (weekday && t >= toMins("16:00") && t < toMins("20:00")) return { cls: "ext", state: "애프터마켓", end: toMins("20:00") - t };
+  const eveningOpen = ["Sun", "Mon", "Tue", "Wed", "Thu"].includes(wd) && t >= toMins("20:00");
+  const morningOpen = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(wd) && t < toMins("04:00");
+  if (eveningOpen) return { cls: "ext", state: "데이마켓", end: 1440 - t + toMins("04:00") };
+  if (morningOpen) return { cls: "ext", state: "데이마켓", end: toMins("04:00") - t };
+  return { cls: "", state: "휴장", end: null };
+}
+function renderSessions() {
+  [["sess-kr", krSession()], ["sess-us", usSession()]].forEach(([id, s]) => {
+    const el = $(id);
+    el.className = "sess " + s.cls;
+    el.querySelector(".state").textContent = s.state;
+    el.querySelector(".until").textContent = s.end != null ? fmtLeft(s.end) : "";
+  });
+}
+
+/* ---------- 날씨 ---------- */
+const ICONS = {
+  sun:   '<circle cx="32" cy="32" r="11"/>' + [0,45,90,135,180,225,270,315].map(a => `<line x1="32" y1="7" x2="32" y2="13" transform="rotate(${a} 32 32)"/>`).join(""),
+  moon:  '<path d="M40 12a20 20 0 1 0 12 30A16 16 0 0 1 40 12z"/>',
+  cloud: '<path d="M20 46h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A11 11 0 0 0 20 46z"/>',
+  partly:'<circle cx="24" cy="22" r="8"/><line x1="24" y1="6" x2="24" y2="10"/><line x1="10" y1="22" x2="14" y2="22"/><line x1="14" y1="12" x2="17" y2="15"/><path d="M24 50h22a9 9 0 0 0 0-18 12 12 0 0 0-23-2A9 9 0 0 0 24 50z"/>',
+  rain:  '<path d="M20 38h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A11 11 0 0 0 20 38z"/><line x1="22" y1="44" x2="19" y2="52"/><line x1="32" y1="44" x2="29" y2="52"/><line x1="42" y1="44" x2="39" y2="52"/>',
+  snow:  '<path d="M20 38h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A11 11 0 0 0 20 38z"/><circle cx="22" cy="48" r="1.6"/><circle cx="32" cy="52" r="1.6"/><circle cx="42" cy="48" r="1.6"/>',
+  fog:   '<line x1="12" y1="26" x2="52" y2="26"/><line x1="16" y1="34" x2="48" y2="34"/><line x1="12" y1="42" x2="52" y2="42"/>',
+  storm: '<path d="M20 36h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A11 11 0 0 0 20 36z"/><polyline points="34,38 28,47 35,47 30,56"/>',
+};
+function wmo(code, isDay = 1) {
+  if (code === 0) return ["맑음", isDay ? "sun" : "moon"];
+  if (code === 1) return ["대체로 맑음", isDay ? "sun" : "moon"];
+  if (code === 2) return ["구름 조금", "partly"];
+  if (code === 3) return ["흐림", "cloud"];
+  if (code === 45 || code === 48) return ["안개", "fog"];
+  if (code >= 51 && code <= 57) return ["이슬비", "rain"];
+  if (code >= 61 && code <= 67) return ["비", "rain"];
+  if (code >= 71 && code <= 77) return ["눈", "snow"];
+  if (code >= 80 && code <= 82) return ["소나기", "rain"];
+  if (code >= 85 && code <= 86) return ["눈 소나기", "snow"];
+  if (code >= 95) return ["뇌우", "storm"];
+  return ["-", "cloud"];
+}
+// 날씨 상태별 색 (맑음=노랑, 구름=회청, 비=파랑, 눈=흰빛, 안개=회색, 뇌우=보라)
+// 날씨 상태 이모지 (날씨 카드 제목 왼쪽)
+const SKY_EMOJI = { "맑음": "☀️", "대체로 맑음": "🌤️", "구름 조금": "⛅", "흐림": "☁️", "안개": "🌫️",
+                    "이슬비": "🌦️", "비": "🌧️", "소나기": "🌦️", "눈": "❄️", "눈 소나기": "🌨️", "뇌우": "⛈️" };
+const SKY_COLOR = { sun: "#ffd36b", moon: "#ffd36b", partly: "#f0dca0", cloud: "#b8c2cf",
+                    rain: "#6cbcff", snow: "#e3f1ff", fog: "#9aa3ae", storm: "#c9a2ff" };
+const svgIcon = (k) => `<svg viewBox="0 0 64 64" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
+
+// 기온 표시: 진짜 마이너스 기호(−, 하이픈보다 숫자와 붙어 보임) + 폭에서 빠지는 '°'
+const degHTML = (v) => { const n = Math.round(v); return `${n < 0 ? "−" + Math.abs(n) : n}<span class="deg"></span>`; };
+let lastWeather = null;   // 화면 크기 바뀔 때 그래프 다시 그리기용
+
+async function updateWeather() {
+  const { lat, lon, name } = CONFIG.LOCATION;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&current=temperature_2m,weather_code,is_day`
+    + `&hourly=precipitation_probability`
+    + `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max`
+    + `&timezone=${encodeURIComponent(TZ)}&forecast_days=3`;
+  try {
+    const d = await fetchJSON(url);
+    lastWeather = d;
+    const c = d.current, [desc, icon] = wmo(c.weather_code, c.is_day), t = Math.round(c.temperature_2m);
+    $("w-icon").innerHTML = svgIcon(icon);
+    $("w-temp").innerHTML = degHTML(c.temperature_2m);
+    $("night-temp").textContent = `${t}°`;
+    renderDay();
+    setStatus("w", "");
+  } catch (e) {
+    setStatus("w", "날씨 갱신 실패(다음 주기에 재시도)");
+  }
+}
+const hhmm = () => { const p = partsIn(TZ); return `${pad(p.h)}:${pad(p.m)}`; };
+
+function renderDay() {
+  const d = lastWeather;
+  if (!d) return;
+  const p = partsIn(TZ);
+  const idx = p.h >= CONFIG.TOMORROW_FROM_HOUR ? 1 : 0;           // 저녁부터는 내일 기준
+  const dayStr = d.daily.time[idx];
+  const [ddesc, dicon] = wmo(d.daily.weather_code[idx]);
+  // 상태만 색으로 구별해서 표시. 18시 이후 내일 예보일 때만 작은 '내일' 표시를 붙임
+  $("day-title").innerHTML = (idx ? `<span class="tmr">내일</span>` : "")
+    + `<span class="emo">${SKY_EMOJI[ddesc] || ""}</span><span style="color:${SKY_COLOR[dicon]}">${ddesc}</span>`;
+  $("d-max").innerHTML = degHTML(d.daily.temperature_2m_max[idx]);
+  $("d-min").innerHTML = degHTML(d.daily.temperature_2m_min[idx]);
+  $("d-rain").innerHTML = `${d.daily.precipitation_probability_max[idx] ?? 0}<span class="hang"><small>%</small></span>`;
+
+  const hours = [], probs = [];
+  d.hourly.time.forEach((t, i) => { if (t.startsWith(dayStr)) { hours.push(Number(t.slice(11, 13))); probs.push(d.hourly.precipitation_probability[i] ?? 0); } });
+  drawRainChart(hours, probs, idx === 0 ? p.h + p.m / 60 : null);
+}
+
+// CSS 변수 → 실제 색 값 (SVG 속성에는 var()가 브라우저마다 안 먹힐 수 있음)
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let lastRain = null;      // 크기 변화 시 다시 그리기용
+function drawRainChart(hours, probs, nowH) {
+  lastRain = [hours, probs, nowH];
+  const box = $("rain-chart");
+  const W = box.clientWidth, H = box.clientHeight;
+  if (!probs.length) return;
+  if (!W || !H) { requestAnimationFrame(() => box.clientHeight && drawRainChart(hours, probs, nowH)); return; }
+  const C = { rain: cssVar("--rain"), line: cssVar("--line"), dim: cssVar("--dim"), sub: cssVar("--sub"), text: cssVar("--text") };
+  const vh = window.innerHeight / 100;
+  const fs = Math.round(2.6 * vh);                 // 축 글씨
+  const padL = fs * 0.6, padR = fs * 0.6, padT = fs * 1.6, padB = fs * 1.7;
+  const x = (h) => padL + (h / 23) * (W - padL - padR);
+  const y = (v) => padT + (1 - v / 100) * (H - padT - padB);
+  const pts = probs.map((v, i) => [x(hours[i]), y(v)]);
+
+  // 부드러운 곡선 (단조 보간 대신 가벼운 카디널 스플라인, 0~100 범위로 제한)
+  const clampY = (v) => Math.min(y(0), Math.max(y(100), v));
+  let path = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2, k = 0.18;
+    path += ` C${p1[0] + (p2[0] - p0[0]) * k},${clampY(p1[1] + (p2[1] - p0[1]) * k)} ${p2[0] - (p3[0] - p1[0]) * k},${clampY(p2[1] - (p3[1] - p1[1]) * k)} ${p2[0]},${p2[1]}`;
+  }
+  const area = `${path} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z`;
+
+  const max = Math.max(...probs), mi = probs.indexOf(max);
+  const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="${C.line}" stroke-width="1"/>`
+    ).join("");
+  const xl = [0, 6, 12, 18].map(h => `<text x="${x(h)}" y="${H - fs * 0.25}" fill="${C.sub}" font-size="${fs}" text-anchor="${h === 0 ? "start" : "middle"}">${h}시</text>`).join("");
+
+  // 지나간 시간은 흐리게: 현재 시각 기준으로 잘라서 두 번 그림
+  const cut = nowH != null ? x(Math.min(23, nowH)) : padL;
+  const nowLine = nowH != null
+    ? `<line x1="${cut}" x2="${cut}" y1="${padT}" y2="${y(0)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="4 4" opacity=".55"/>`
+    : "";
+  const peak = max > 0
+    ? `<circle cx="${pts[mi][0]}" cy="${pts[mi][1]}" r="${fs * 0.32}" fill="${C.rain}"/>`
+      + `<text x="${Math.min(W - padR - fs, Math.max(padL + fs, pts[mi][0]))}" y="${pts[mi][1] - fs * 0.6}" fill="${C.text}" font-size="${fs * 1.05}" font-weight="700" text-anchor="middle">${hours[mi]}시 ${max}%</text>`
+    : "";
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+    <defs>
+      <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.rain}" stop-opacity=".35"/><stop offset="1" stop-color="${C.rain}" stop-opacity="0"/></linearGradient>
+      <clipPath id="past"><rect x="0" y="0" width="${cut}" height="${H}"/></clipPath>
+      <clipPath id="future"><rect x="${cut}" y="0" width="${W - cut}" height="${H}"/></clipPath>
+    </defs>
+    ${grid}${xl}
+    <g clip-path="url(#future)"><path d="${area}" fill="url(#rg)"/><path d="${path}" fill="none" stroke="${C.rain}" stroke-width="${Math.max(3, fs * 0.16)}" stroke-linejoin="round"/></g>
+    <g clip-path="url(#past)" opacity=".35"><path d="${path}" fill="none" stroke="${C.sub}" stroke-width="${Math.max(2, fs * 0.12)}"/></g>
+    ${nowLine}${peak}
+  </svg>`;
+
+
+  // 종일 0%면 그래프 위 제목 자리를 배지로 바꿈 (그래프 위에 글씨를 얹지 않음)
+  const head = $("rain-head");
+  head.classList.toggle("none", max === 0);
+  head.textContent = max === 0 ? "종일 비 소식 없음" : "";
+}
+
+/* ---------- 미세먼지 ---------- */
+function grade(v, cuts) {
+  if (v <= cuts[0]) return ["좋음", "var(--good)"];
+  if (v <= cuts[1]) return ["보통", "var(--ok)"];
+  if (v <= cuts[2]) return ["나쁨", "var(--bad)"];
+  return ["매우나쁨", "var(--worst)"];
+}
+async function updateAir() {
+  const { lat, lon } = CONFIG.LOCATION;
+  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5&timezone=${encodeURIComponent(TZ)}`;
+  try {
+    const d = await fetchJSON(url);
+    const [g25, c25] = grade(Math.round(d.current.pm2_5), [15, 35, 75]);
+    const [g10, c10] = grade(Math.round(d.current.pm10), [30, 80, 150]);
+    $("w-air").innerHTML = `<span>미세 <b style="color:${c10}">${g10}</b></span><span>초미세 <b style="color:${c25}">${g25}</b></span>`;
+    setStatus("a", "");
+  } catch (e) {
+    setStatus("a", "미세먼지 갱신 실패");
+  }
+}
+
+/* ---------- 시세 위젯 ---------- */
+function tvTile(src, config, kind) {
+  const tile = document.createElement("div");
+  tile.className = "tile" + (kind === "screener" ? " screener" : "");
+  tile.dataset.kind = kind;
+  config.locale = CONFIG.TV_LOCALE;
+  const inner = `<div class="tv-inner"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div></div></div>`;
+  tile.innerHTML = kind === "screener" ? `<div class="clip">${inner}</div>` : inner;
+  const s = document.createElement("script");
+  s.type = "text/javascript";
+  s.async = true;
+  s.src = `https://s3.tradingview.com/external-embedding/${src}`;
+  s.innerHTML = JSON.stringify(config);
+  tile.querySelector(".tradingview-widget-container").append(s);
+  return tile;
+}
+function fitTiles() {
+  // 화면 높이에 비례한 배율 → 어느 기기에서든 같은 비율로 보임
+  const T = CONFIG.TV, base = window.innerHeight / T.REF_HEIGHT;
+  document.querySelectorAll(".tile").forEach(t => {
+    if (t.dataset.kind === "screener") {
+      // 원하는 열까지만 보이도록: 폭·높이 둘 다 칸 안에 들어가는 배율로 맞추고, 그 폭만큼만 보여줌
+      const S = CONFIG.SCREENER;
+      const zW = t.clientWidth / S.VISIBLE_W;
+      const zR = t.clientHeight / (S.HEAD_PX + S.ROW_PX * CONFIG.GROUP.SHOW_ROWS);
+      const z = Math.max(0.5, S.FIT === "rows" ? Math.min(base * T.ZOOM_GROUP, zW, zR) : zW);
+      t.style.setProperty("--z", z.toFixed(3));
+      const clip = t.querySelector(".clip");
+      clip.style.width = `${S.VISIBLE_W * z}px`;
+      // 반쯤 잘린 줄이 보이지 않게, 다 들어가는 줄까지만 보여줌
+      const fitRows = Math.max(1, Math.floor((t.clientHeight / z - S.HEAD_PX) / S.ROW_PX));
+      clip.style.height = `${(S.HEAD_PX + S.ROW_PX * Math.min(fitRows, CONFIG.GROUP.SHOW_ROWS)) * z}px`;
+      clip.querySelector(".tv-inner").style.width = `${S.INNER_W}px`;
+      return;
+    }
+    let z = base * (t.dataset.kind === "group" ? T.ZOOM_GROUP : T.ZOOM_STOCK);
+    if (t.dataset.kind === "group") {
+      // 목록이 칸 안에 다 들어가도록 필요하면 줄임
+      const need = T.GROUP_HEAD_PX + T.GROUP_ROW_PX * CONFIG.GROUP.symbols.length;
+      z = Math.min(z, t.clientHeight / need);
+    }
+    t.style.setProperty("--z", Math.max(0.5, z).toFixed(3));
+  });
+}
+function buildMarkets() {
+  const rs = $("row-stocks"), rg = $("row-group");
+  if (rs.childElementCount && rg.childElementCount) return;   // 이미 그려져 있으면 그대로 둠
+  rs.innerHTML = ""; rg.innerHTML = "";
+  rs.style.gridTemplateColumns = `repeat(${CONFIG.STOCKS.length}, 1fr)`;
+  CONFIG.STOCKS.forEach(([sym, name]) => rs.append(tvTile("embed-widget-symbol-overview.js", {
+    symbols: [[name, `${sym}|1D`]], chartOnly: false, width: "100%", height: "100%", autosize: true,
+    locale: "kr", colorTheme: "dark", isTransparent: true, showVolume: false, showMA: false,
+    hideDateRanges: true, hideMarketStatus: false, hideSymbolLogo: false, scalePosition: "right",
+    scaleMode: "Normal", noTimeScale: false, valuesTracking: "1", changeMode: "price-and-percent",
+    chartType: "area", lineWidth: 2, lineType: 0, dateRanges: ["1d|1"],
+  }, "stock")));
+  rg.style.gridTemplateColumns = "1fr";
+  rg.append(CONFIG.GROUP.MODE === "auto"
+    ? tvTile("embed-widget-screener.js", {
+        width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "most_capitalized",
+        market: "america", showToolbar: false, colorTheme: "dark", isTransparent: true,
+      }, "screener")
+    : tvTile("embed-widget-market-overview.js", {
+        colorTheme: "dark", dateRange: "1D", showChart: false, locale: "kr", width: "100%", height: "100%",
+        largeChartUrl: "", isTransparent: true, showSymbolLogo: true, showFloatingTooltip: false,
+        tabs: [{ title: CONFIG.GROUP.title, symbols: CONFIG.GROUP.symbols.map(([s, d]) => ({ s, d })) }],
+      }, "group"));
+  fitTiles();
+}
+function clearMarkets() { $("row-stocks").innerHTML = ""; $("row-group").innerHTML = ""; }
+
+/* ---------- 야간 모드 ---------- */
+function applyNight() {
+  const k = partsIn(TZ).mins, s = toMins(CONFIG.NIGHT.start), e = toMins(CONFIG.NIGHT.end);
+  const night = s < e ? (k >= s && k < e) : (k >= s || k < e);
+  document.body.classList.toggle("night", night);
+  night ? clearMarkets() : buildMarkets();          // 야간에는 위젯 제거(CPU 절약)
+}
+
+/* ---------- 메모, 화면 유지 ---------- */
+function rotateMemo() {
+  const list = CONFIG.MEMO.filter(Boolean), el = $("memo");
+  if (!list.length) { el.textContent = ""; syncFooter(); return; }
+  const next = (Number(el.dataset.i ?? -1) + 1) % list.length;
+  el.dataset.i = next; el.textContent = list[next];
+  syncFooter();
+}
+async function keepAwake() {
+  try { if ("wakeLock" in navigator && document.visibilityState === "visible") await navigator.wakeLock.request("screen"); } catch (e) {}
+}
+
+/* ---------- 시작 ---------- */
+function tick() { renderClock(); renderSessions(); applyNight(); }
+tick(); updateWeather(); updateAir(); rotateMemo(); keepAwake();
+setInterval(tick, 15 * 1000);
+setInterval(renderDay, 5 * 60 * 1000);                       // '지금' 선 이동, 오늘→내일 전환
+setInterval(updateWeather, CONFIG.REFRESH_WEATHER_MIN * 60 * 1000);
+setInterval(updateAir, CONFIG.REFRESH_AIR_MIN * 60 * 1000);
+setInterval(rotateMemo, 30 * 1000);
+setTimeout(() => location.reload(), CONFIG.RELOAD_PAGE_HOURS * 3600 * 1000);
+window.addEventListener("resize", fitTiles);
+if ("ResizeObserver" in window) new ResizeObserver(() => lastRain && drawRainChart(...lastRain)).observe($("rain-chart"));
+else window.addEventListener("resize", renderDay);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { keepAwake(); updateWeather(); } });
+</script>
+</body>
+</html>
