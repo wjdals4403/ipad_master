@@ -35,7 +35,9 @@
   #app{position:absolute;inset:0;padding:max(3vh, calc(env(safe-area-inset-top) + 1vh)) 2.6vw calc(3.8vh + env(safe-area-inset-bottom));display:grid;gap:2.2vh 2.4vw;
     grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:29vh minmax(0,1fr) auto;
     grid-template-areas:"clock mtop" "weather mbody" "foot foot"}
-  .a-clock{grid-area:clock;display:flex;align-items:flex-end;justify-content:center;min-height:0}   /* 날짜를 아래 카드 쪽에 붙임 */
+  .a-clock{grid-area:clock;display:flex;align-items:flex-start;justify-content:center;min-height:0}
+  /* 시계·날짜 세트는 스크립트(fitClockSet)가 크기와 위치를 계산: 시계 숫자 윗끝 = 오른쪽 차트 칸 윗선, 날짜 아랫끝 = 차트 칸 아랫선 */
+  .a-clock .time{will-change:transform}
   .a-mtop{grid-area:mtop;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.2vh;min-width:0;min-height:0}
   .a-weather{grid-area:weather;display:grid;grid-template-rows:auto minmax(0,1fr);gap:2.2vh;min-width:0;min-height:0}
   .a-mbody{grid-area:mbody;display:grid;min-width:0;min-height:0}
@@ -88,16 +90,16 @@
   #d-max{color:var(--hot)} #d-min{color:var(--cold)}
   /* 2층: 강수 — 숫자와 그래프를 한 묶음으로, 기온보다 한 단계 작게 */
   /* 구분선 ↔ 강수 블록도 눈에 보이는 간격이 위 두 간격과 같도록(글자 윗여백 차이 보정해 3.7vh). 강수 라벨과 그래프 맨 윗선을 같은 높이에서 시작 */
-  .rain-sec{display:grid;grid-template-columns:15vh 1fr;gap:0;border-top:1px solid var(--line);padding-top:3.7vh;min-height:0}
+  .rain-sec{display:grid;grid-template-columns:12.8vh 1fr;gap:0;border-top:1px solid var(--line);padding-top:3.7vh;min-height:0}
   /* 강수 숫자 묶음: 세로는 그래프 맨 윗선~시간 라벨 줄의 한가운데, 가로는 카드 왼쪽 끝~그래프 시작점의 한가운데 */
   /* 세로: 위 구분선 ~ 카드 바닥의 한가운데 (위쪽 3.7vh·아래쪽 1.4vh 여백까지 칸을 넓혀서 그 안에서 가운데 정렬)
-     가로: 카드 왼쪽 끝 ~ 그래프 시작점의 한가운데 (오른쪽 2.5vh로 카드 안쪽 여백 차이 보정) */
+     가로: '강수확률' 글자가 카드 왼쪽 끝 ~ 그래프 시작점의 한가운데. 숫자는 '%'까지 포함해서 같은 중심선에 */
   .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
-    margin:-3.7vh 0 -1.4vh;padding:0 2.5vh 0 0}
-  #d-rain{font-size:6.4vh;font-weight:600;line-height:1.05;color:var(--rain)}
-  /* '%'는 '°'처럼 폭에서 빼서 숫자만 가운데 정렬 */
-  .hang{position:relative;display:inline-block;width:0;height:0}
-  .hang small{position:absolute;left:.08em;bottom:0;font-size:.47em;line-height:1}
+    margin:-3.7vh 0 -1.4vh;padding:0 .5vh 0 0}
+  /* 크기 4.5vh: 가장 넓은 "100%"도 '강수확률' 글자 폭을 넘지 않게. 고정폭·자간 보정은 꺼서 '1' 같은 좁은 숫자 쏠림 방지 */
+  #d-rain{font-size:4.5vh;font-weight:600;line-height:1.05;color:var(--rain);font-variant-numeric:normal;letter-spacing:0}
+  /* '%'까지 포함한 숫자 묶음 전체를 가운데 정렬 (세 자리여도 그래프에 닿지 않게) */
+  #d-rain .pct{font-size:.47em;margin-left:.08em}
   #rain-chart{min-height:14vh;position:relative}
   #rain-chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 
@@ -107,9 +109,6 @@
   .sess .dot{width:1.4vh;height:1.4vh;border-radius:50%;flex:none;background:var(--closed)}
   .sess .name{color:var(--sub)}
   .sess .state{font-weight:700}
-  .sess .until{color:var(--sub)}
-  .sess .until:not(:empty)::before{content:"· "}
-  .sess .until:empty{display:none}   /* 휴장 등 끝나는 시각이 없을 때 빈 칸이 간격을 차지해 줄이 왼쪽으로 밀리던 문제 */
   .sess.open .dot{background:var(--open);box-shadow:0 0 1.2vh var(--open)}
   .sess.ext .dot{background:var(--ext);box-shadow:0 0 1.2vh var(--ext)}
 
@@ -137,7 +136,7 @@
     .a-weather{gap:1.4vh} .a-mtop{min-height:22vh}
     .time{--T:10vh}
     #w-icon{width:5.5vh;height:5.5vh} #w-temp{font-size:6vh}
-    .temps .v{font-size:6vh} #d-rain{font-size:4.6vh}
+    .temps .v{font-size:6vh} #d-rain{font-size:3.2vh}
     #rain-chart{min-height:15vh}
   }
 
@@ -171,7 +170,7 @@
   .cal{margin-top:5.2vh;display:grid;grid-template-columns:repeat(7,4.9vh);gap:.8vh .9vh;justify-content:center}   /* 날짜 줄과 간격을 넉넉히 */
   .cal .w{font-size:1.9vh;color:var(--dim);text-align:center}
   .cal .d{font-size:2.4vh;color:var(--sub);text-align:center;width:4.1vh;height:4.1vh;line-height:4.1vh;border-radius:50%;margin:0 auto}
-  .cal .sun{color:#b5776f} .cal .sat{color:#6f93b5}
+  .cal .sun,.t-date .sun{color:#b5776f} .cal .sat,.t-date .sat{color:#6f93b5}   /* 일요일 빨강 · 토요일 파랑 (달력·날짜 공통) */
   .cal .today{background:var(--hand-s);color:var(--bg);font-weight:700}
 
   /* 원래 화면의 큰 시계를 누르면 시계 모드 */
@@ -223,8 +222,8 @@
 
   <section class="a-mtop">
     <div class="sessions">
-      <div class="sess" id="sess-kr"><span class="dot"></span><span class="name">국장</span><span class="state">-</span><span class="until num"></span></div>
-      <div class="sess" id="sess-us"><span class="dot"></span><span class="name">미장</span><span class="state">-</span><span class="until num"></span></div>
+      <div class="sess" id="sess-kr"><span class="dot"></span><span class="name">한국</span><span class="state">-</span></div>
+      <div class="sess" id="sess-us"><span class="dot"></span><span class="name">미국</span><span class="state">-</span></div>
     </div>
     <div class="row" id="row-stocks"></div>
   </section>
@@ -340,8 +339,6 @@ function partsIn(tz, d = new Date()) {
            ymd: `${o.year}-${o.month}-${o.day}` };
 }
 const toMins = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
-// 남은 분 → 끝나는 시각(한국 시간)으로 표시
-const fmtLeft = (mins) => { const p = partsIn(TZ, new Date(Date.now() + mins * 60000)); return `${pad(p.h)}:${pad(p.m)}까지`; };
 
 // 실패하기 쉬운 요청: 최대 3회, 지연 후 재시도
 async function fetchJSON(url, tries = 3, delayMs = 3000, timeoutMs = 15000) {
@@ -380,12 +377,67 @@ function renderClock() {
   const now = new Date(), p = partsIn(TZ, now);
   $("clock").textContent = `${pad(p.h)}:${pad(p.m)}`;
   _fmt.date = _fmt.date || new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" });
-  $("date").textContent = _fmt.date.format(now);
+  const ds = _fmt.date.format(now);
+  if ($("date").textContent !== ds) {
+    // 토요일은 파랑, 일요일은 빨강 (시계 모드 달력과 같은 색) — 요일 글자에만
+    const parts = _fmt.date.formatToParts(now), dow = partsIn(TZ, now).wd;
+    const cls = dow === "Sat" ? "sat" : dow === "Sun" ? "sun" : "";
+    $("date").innerHTML = parts.map(x => x.type === "weekday" && cls ? `<span class="${cls}">${x.value}</span>` : x.value).join("");
+    requestAnimationFrame(fitClockSet);
+  }
   const today = new Date(p.ymd + "T00:00:00+09:00");
   $("ddays").innerHTML = CONFIG.DDAYS.filter(d => d.label && d.date).map(d => {
     const diff = Math.round((new Date(d.date + "T00:00:00+09:00") - today) / 86400000);
     return `<span>${d.label}<b class="num">${diff > 0 ? "D-" + diff : diff === 0 ? "D-DAY" : "D+" + (-diff)}</b></span>`;
   }).join("&nbsp;&nbsp;");
+}
+
+/* ---------- 시계·날짜 세트 크기 맞추기 ----------
+   시계 숫자의 '보이는' 윗끝과 날짜의 '보이는' 아랫끝이 오른쪽 차트 칸의 윗선·아랫선에 오도록
+   글자 크기(--T)와 세로 위치를 계산. 글꼴마다 글자 위아래 여백이 달라서, 실제로 그려 보고 잉크 위치를 잼 */
+const _inkCv = document.createElement("canvas");
+function inkExtent(text, font) {                           // 기준선 위로 몇 px, 아래로 몇 px 칠해지는지
+  const ctx = _inkCv.getContext("2d");
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 20, size = parseFloat(font.match(/(\d+(?:\.\d+)?)px/)[1]);
+  _inkCv.width = w; _inkCv.height = Math.ceil(size * 2.2);
+  const base = Math.round(size * 1.5);
+  ctx.font = font; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#000";
+  ctx.clearRect(0, 0, w, _inkCv.height); ctx.fillText(text, 10, base);
+  const px = ctx.getImageData(0, 0, w, _inkCv.height).data;
+  let top = -1, bottom = -1;
+  for (let yy = 0; yy < _inkCv.height; yy++) {
+    for (let xx = 0; xx < w; xx++) if (px[(yy * w + xx) * 4 + 3] > 60) { if (top < 0) top = yy; bottom = yy; break; }
+  }
+  return top < 0 ? { up: 0, down: 0 } : { up: base - top, down: bottom + 1 - base };
+}
+function baselineY(el) {                                   // 화면에서 그 줄의 기준선 위치
+  const probe = document.createElement("span");
+  probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+  el.appendChild(probe);
+  const y = probe.getBoundingClientRect().top;
+  probe.remove();
+  return y;
+}
+function fitClockSet() {
+  const set = document.querySelector(".a-clock .time"), tiles = $("row-stocks").getBoundingClientRect();
+  if (!matchMedia("(orientation: landscape)").matches || !tiles.height) { set.style.removeProperty("--T"); set.style.transform = ""; return; }
+  const ff = getComputedStyle($("clock")).fontFamily, col = document.querySelector(".a-clock").getBoundingClientRect();
+  const measure = (T) => {                                 // 글자 크기 T일 때 보이는 윗끝·아랫끝
+    set.style.setProperty("--T", `${T}px`);
+    const c = inkExtent($("clock").textContent, `600 ${T}px ${ff}`);
+    const d = inkExtent($("date").textContent, `500 ${T * .23}px ${ff}`);
+    return { top: baselineY($("clock")) - c.up, bottom: baselineY($("date")) + d.down };
+  };
+  set.style.transform = "";
+  const m100 = measure(100);
+  let T = 100 * tiles.height / (m100.bottom - m100.top);                 // 높이에 딱 맞는 크기
+  const cx = _inkCv.getContext("2d"); cx.font = `600 100px ${ff}`;
+  const wide = cx.measureText("00:00").width;                            // 가장 넓은 축에 드는 시각 폭(글자 크기 100px 기준)
+  T = Math.min(T, 100 * (col.width * .98) / wide);                      // 가장 넓은 시각도 칸 안에 들어가게
+  const m = measure(T);
+  const dy = (tiles.top + tiles.bottom) / 2 - (m.top + m.bottom) / 2;   // 보이는 세트의 세로 중심 = 차트 칸 세로 중심
+  set.style.transform = `translateY(${dy}px)`;
 }
 
 /* ---------- 장 상태 ----------
@@ -416,7 +468,6 @@ function renderSessions() {
     const el = $(id);
     el.className = "sess " + s.cls;
     el.querySelector(".state").textContent = s.state;
-    el.querySelector(".until").textContent = s.end != null ? fmtLeft(s.end) : "";
   });
 }
 
@@ -485,16 +536,26 @@ const PEEK_SEC = 15;
 async function swapDay(update) {
   const els = [...$("day").children];
   const ease = "cubic-bezier(.22,.9,.24,1)";
-  if (!els[0].animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { update(); return; }
-  // 연속으로 누르면 앞 모션이 취소될 수 있음 → 취소돼도 내용 갱신은 반드시 실행
-  await Promise.all(els.map(el => el.animate(
+  // 모션을 쓸 수 없거나, 탭이 안 보이는 중이면(크롬 백그라운드 탭은 모션이 멈춤) 모션 없이 바로 갱신
+  if (!els[0].animate || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    els.forEach(el => el.getAnimations && el.getAnimations().forEach(a => a.cancel()));
+    update(); return;
+  }
+  // 사라지는 모션은 '끝까지 투명 유지(fill)' 없이 실행하고, 끝나길 최대 0.3초만 기다림
+  // → 모션이 멈추거나 취소돼도 내용이 투명한 채로 남지 않음
+  const outs = els.map(el => el.animate(
     [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.94)" }],
-    { duration: 180, easing: "ease-in", fill: "forwards" }).finished)).catch(() => {});
-  update();
-  els.forEach(el => {
-    el.getAnimations().forEach(a => a.cancel());
-    el.animate([{ opacity: 0, transform: "scale(1.05)" }, { opacity: 1, transform: "scale(1)" }], { duration: 480, easing: ease });
-  });
+    { duration: 180, easing: "ease-in" }));
+  await Promise.race([Promise.all(outs.map(a => a.finished)).catch(() => {}), new Promise(r => setTimeout(r, 300))]);
+  try { update(); }
+  finally {
+    els.forEach(el => {
+      el.getAnimations().forEach(a => a.cancel());
+      el.animate([{ opacity: 0, transform: "scale(1.05)" }, { opacity: 1, transform: "scale(1)" }], { duration: 480, easing: ease });
+    });
+    // 안전장치: 0.7초 뒤에도 모션이 남아 있으면(탭 전환 등으로 멈춘 경우) 모두 걷어내서 내용이 반드시 보이게
+    setTimeout(() => els.forEach(el => el.getAnimations().forEach(a => a.cancel())), 700);
+  }
 }
 function endPeek() {
   if (!dayPeek) return;
@@ -540,7 +601,7 @@ function renderDay() {
   const hours = [], probs = [];
   d.hourly.time.forEach((t, i) => { if (t.startsWith(dayStr)) { hours.push(Number(t.slice(11, 13))); probs.push(d.hourly.precipitation_probability[i] ?? 0); } });
   // 큰 숫자는 그래프와 같은 시간별 값의 최댓값 → 숫자와 그래프 최고점이 항상 일치
-  $("d-rain").innerHTML = `${probs.length ? Math.max(...probs) : 0}<span class="hang"><small>%</small></span>`;
+  $("d-rain").innerHTML = `${probs.length ? Math.max(...probs) : 0}<small class="pct">%</small>`;
   drawRainChart(hours, probs, isTmr ? null : p.h + p.m / 60);
 }
 
@@ -558,6 +619,7 @@ function drawRainChart(hours, probs, nowH) {
   const vh = window.innerHeight / 100;
   const fs = Math.round(2.6 * vh);                 // 최고점 라벨 기준 크기
   const afs = Math.round(2.2 * vh);                // 시간 눈금 글씨 (조금 작게)
+  const pfs = Math.round(2.4 * vh);                // 최고점 라벨 ('강수확률' 2.8vh보다 작게)
   const padL = fs * 0.6, padR = fs * 0.45, padT = fs * 0.35, padB = afs * 1.9;   // 위 여백 최소(맨 윗선 = 강수 라벨 높이), 오른쪽 여백은 왼쪽 여백과 같아지도록
   const x = (h) => padL + (h / 23) * (W - padL - padR);
   const y = (v) => padT + (1 - v / 100) * (H - padT - padB);
@@ -585,7 +647,7 @@ function drawRainChart(hours, probs, nowH) {
     : "";
   const peak = max > 0
     ? `<circle cx="${pts[mi][0]}" cy="${pts[mi][1]}" r="${fs * 0.32}" fill="${C.rain}"/>`
-      + `<text x="${Math.min(W - padR - fs * 2.8, Math.max(padL + fs * 2.8, pts[mi][0]))}" y="${pts[mi][1] - fs * 0.6}" fill="${C.text}" font-size="${fs * 1.05}" font-weight="700" text-anchor="middle">${hours[mi]}시 ${max}%</text>`
+      + `<text x="${Math.min(W - padR - pfs * 2.8, Math.max(padL + pfs * 2.8, pts[mi][0]))}" y="${pts[mi][1] - pfs * 0.7}" fill="${C.text}" font-size="${pfs}" font-weight="700" text-anchor="middle">${hours[mi]}시 ${max}%</text>`
     : "";
 
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
@@ -769,7 +831,7 @@ function renderAnalog() {
   svg.querySelector(".mh").style.transform = `rotate(${mDeg}deg)`;
   svg.querySelector(".sh").style.transform = `rotate(${sec * 6}deg)`;
   $("digital").textContent = `${pad(p.h)}:${pad(p.m)}`;
-  $("cv-date").textContent = $("date").textContent;
+  if ($("cv-date").innerHTML !== $("date").innerHTML) $("cv-date").innerHTML = $("date").innerHTML;
   renderCalendar(p.ymd);
 }
 
@@ -847,7 +909,8 @@ async function checkUpdate() {
   } catch (e) {}
 }
 setInterval(checkUpdate, CONFIG.UPDATE_CHECK_MIN * 60 * 1000);
-window.addEventListener("resize", fitTiles);
+window.addEventListener("resize", () => { fitTiles(); fitClockSet(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitClockSet);
 if ("ResizeObserver" in window) new ResizeObserver(() => lastRain && drawRainChart(...lastRain)).observe($("rain-chart"));
 else window.addEventListener("resize", renderDay);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { checkUpdate(); tick(); keepAwake(); updateWeather(); updateAir(); } });
