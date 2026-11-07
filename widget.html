@@ -22,24 +22,24 @@
     --good:#4aa8ff; --ok:#3ecf8e; --bad:#ffa53d; --worst:#ff5d5d;
     --open:#3ecf8e; --ext:#ffb547; --closed:#4f5865;
     --hand-s:#8fc8f5;                 /* 시계 모드 초침 색 (아이스 블루) */
-    --r:2.2vh;
+    --r:calc(2.2 * var(--vh));
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
     -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
   .num{font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
-  .label{font-size:2.8vh;color:var(--sub);font-weight:500}
+  .label{font-size:calc(2.8 * var(--vh));color:var(--sub);font-weight:500}
 
   /* 레이아웃: 2단 × 2층. 위층(시계 | 장 상태+차트)과 아래층(날씨 | 시총)이 좌우 같은 높이에서 끊김 */
-  #app{position:absolute;inset:0;padding:max(3vh, calc(env(safe-area-inset-top) + 1vh)) 2.6vw calc(3.8vh + env(safe-area-inset-bottom));display:grid;gap:2.2vh 2.4vw;
-    grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:29vh minmax(0,1fr) auto;
+  #app{position:absolute;inset:0;padding:max(calc(3 * var(--vh)), calc(env(safe-area-inset-top) + calc(1 * var(--vh)))) 2.6vw max(calc(3.8 * var(--vh)), env(safe-area-inset-bottom));display:grid;gap:calc(2.2 * var(--vh)) 2.4vw;
+    grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:calc(29 * var(--vh)) minmax(0,1fr) auto;
     grid-template-areas:"clock mtop" "weather mbody" "foot foot"}
   .a-clock{grid-area:clock;display:flex;align-items:flex-start;justify-content:center;min-height:0}
   /* 시계·날짜 세트는 스크립트(fitClockSet)가 크기와 위치를 계산: 시계 숫자 윗끝 = 오른쪽 차트 칸 윗선, 날짜 아랫끝 = 차트 칸 아랫선 */
   .a-clock .time{will-change:transform}
-  .a-mtop{grid-area:mtop;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.2vh;min-width:0;min-height:0}
-  .a-weather{grid-area:weather;display:grid;grid-template-rows:auto minmax(0,1fr);gap:2.2vh;min-width:0;min-height:0}
+  .a-mtop{grid-area:mtop;display:grid;grid-template-rows:auto minmax(0,1fr);gap:calc(1.2 * var(--vh));min-width:0;min-height:0}
+  .a-weather{grid-area:weather;display:grid;grid-template-rows:auto minmax(0,1fr);gap:calc(2.2 * var(--vh));min-width:0;min-height:0}
   .a-mbody{grid-area:mbody;display:grid;min-width:0;min-height:0}
 
   /* ===== 시계 ===== */
@@ -51,66 +51,66 @@
   .tset .t-time{font-size:var(--T);font-weight:600;line-height:.9;color:var(--text);font-variant-numeric:normal;letter-spacing:0}
   .tset .t-date{display:flex;gap:1.4vw;align-items:baseline;flex-wrap:wrap;justify-content:center;
     margin-top:calc(var(--T) * .09);font-size:calc(var(--T) * .23);color:var(--sub);font-weight:500}
-  .time{--T:17vh}
+  .time{--T:calc(17 * var(--vh))}
   #ddays:empty{display:none}   /* D-day가 없을 때 빈 칸이 간격을 차지해 날짜가 왼쪽으로 밀리던 문제 */
   #ddays b{color:var(--cold);font-weight:700;margin-left:.4vw}
 
   /* 현재 날씨: [아이콘 기온] [미세먼지]를 한 덩어리로 카드 가운데에 모음 */
-  .now{display:flex;align-items:center;justify-content:center;gap:2.6vw;min-width:0;background:var(--card);border-radius:var(--r);padding:1.2vh 1.6vw}
+  .now{display:flex;align-items:center;justify-content:center;gap:2.6vw;min-width:0;background:var(--card);border-radius:var(--r);padding:calc(1.2 * var(--vh)) 1.6vw}
   /* 날씨 열 바로 아래(카드 바깥) 오른쪽: 날씨·미세먼지를 언제 받아왔는지 한 줄
      화면 아래 여백 안에 들어가서 좌우 카드 높이 정렬은 그대로 */
   .a-weather{position:relative}
-  #stamp{position:absolute;right:.4vw;top:calc(100% + .9vh);font-size:1.7vh;line-height:1;color:var(--dim);white-space:nowrap}   /* 아래 여백(3.8vh) 안에 여유 있게 들어감 */
+  #stamp{position:absolute;right:.4vw;top:calc(100% + calc(.9 * var(--vh)));font-size:calc(1.7 * var(--vh));line-height:1;color:var(--dim);white-space:nowrap}   /* 아래 여백(3.8vh) 안에 여유 있게 들어감 */
   .now-l{display:flex;align-items:center;gap:1.2vw}
-  .now-r{display:flex;flex-direction:column;align-items:flex-start;gap:.5vh;min-width:0}
-  #w-icon{width:7vh;height:7vh;flex:none}
-  #w-temp{font-size:7.5vh;font-weight:600;line-height:1;flex:none;padding-right:.35em}   /* 오른쪽 여백 = 매달린 '°' 자리 */
+  .now-r{display:flex;flex-direction:column;align-items:flex-start;gap:calc(.5 * var(--vh));min-width:0}
+  #w-icon{width:calc(7 * var(--vh));height:calc(7 * var(--vh));flex:none}
+  #w-temp{font-size:calc(7.5 * var(--vh));font-weight:600;line-height:1;flex:none;padding-right:.35em}   /* 오른쪽 여백 = 매달린 '°' 자리 */
   /* 미세먼지: 2열 표 — 왼쪽 열 '미세/초미세', 오른쪽 열 등급. 각 열 안에서 가운데 정렬 (최저/최고 라벨과 같은 방식) */
-  #w-air{font-size:3vh;color:var(--sub);display:grid;grid-template-columns:auto auto;column-gap:.7em;row-gap:.2vh;align-items:baseline;justify-items:center;white-space:nowrap}
+  #w-air{font-size:calc(3 * var(--vh));color:var(--sub);display:grid;grid-template-columns:auto auto;column-gap:.7em;row-gap:calc(.2 * var(--vh));align-items:baseline;justify-items:center;white-space:nowrap}
   #w-air b{font-weight:700}
 
-  .day{background:var(--card);border-radius:var(--r);padding:1.8vh 1.6vw 1.4vh;display:grid;
-    grid-template-rows:auto auto 1fr;gap:2.6vh;min-height:0}   /* 제목 ↔ 최저·최고 ↔ (구분선) 사이 간격 동일 */
+  .day{background:var(--card);border-radius:var(--r);padding:calc(1.8 * var(--vh)) 1.6vw calc(1.4 * var(--vh));display:grid;
+    grid-template-rows:auto auto 1fr;gap:calc(2.6 * var(--vh));min-height:0}   /* 제목 ↔ 최저·최고 ↔ (구분선) 사이 간격 동일 */
   .day-head{display:flex;justify-content:space-between;align-items:baseline}
-  #day-title{font-size:3.6vh;font-weight:700;display:flex;align-items:center;gap:.8vw}
+  #day-title{font-size:calc(3.6 * var(--vh));font-weight:700;display:flex;align-items:center;gap:.8vw}
   #day-title .emo{font-size:1.1em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
   /* 오늘/내일 배지: 오늘은 시계 모드의 '오늘' 원과 같은 아이스 블루, 내일은 앰버 */
-  #day-title .tag{font-size:2.4vh;font-weight:700;border-radius:99px;padding:.35vh .9vw;line-height:1.2}
+  #day-title .tag{font-size:calc(2.4 * var(--vh));font-weight:700;border-radius:99px;padding:calc(.35 * var(--vh)) .9vw;line-height:1.2}
   #day-title .tag.today{color:var(--hand-s);background:rgba(143,200,245,.16)}
   #day-title .tag.tmr{color:#ffb547;background:rgba(255,181,71,.16)}
   .day{cursor:pointer;-webkit-tap-highlight-color:transparent}
   /* 최저 | 최고: 같은 폭 두 칸 + 가는 세로 구분선 (위 현재 기온 카드와 같은 분할 방식) */
   .temps{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center}
-  .temps .t{display:flex;flex-direction:column;align-items:center;gap:.2vh}
-  .temps .vline{align-self:stretch;background:var(--line);margin:.8vh 0}
-  .temps .v{font-size:8.4vh;font-weight:600;line-height:1.05}
+  .temps .t{display:flex;flex-direction:column;align-items:center;gap:calc(.2 * var(--vh))}
+  .temps .vline{align-self:stretch;background:var(--line);margin:calc(.8 * var(--vh)) 0}
+  .temps .v{font-size:calc(8.4 * var(--vh));font-weight:600;line-height:1.05}
   /* '°'는 폭 계산에서 빼서 숫자만 가운데 정렬되게 (오른쪽에 매달기) */
   .deg{position:relative;display:inline-block;width:0;height:1em;vertical-align:top;overflow:visible}
   .deg::after{content:"°";position:absolute;left:0;top:0}
   #d-max{color:var(--hot)} #d-min{color:var(--cold)}
   /* 2층: 강수 — 숫자와 그래프를 한 묶음으로, 기온보다 한 단계 작게 */
   /* 구분선 ↔ 강수 블록도 눈에 보이는 간격이 위 두 간격과 같도록(글자 윗여백 차이 보정해 3.7vh). 강수 라벨과 그래프 맨 윗선을 같은 높이에서 시작 */
-  .rain-sec{display:grid;grid-template-columns:12.8vh 1fr;gap:0;border-top:1px solid var(--line);padding-top:3.7vh;min-height:0}
+  .rain-sec{display:grid;grid-template-columns:calc(12.8 * var(--vh)) 1fr;gap:0;border-top:1px solid var(--line);padding-top:calc(3.7 * var(--vh));min-height:0}
   /* 강수 숫자 묶음: 세로는 그래프 맨 윗선~시간 라벨 줄의 한가운데, 가로는 카드 왼쪽 끝~그래프 시작점의 한가운데 */
   /* 세로: 위 구분선 ~ 카드 바닥의 한가운데 (위쪽 3.7vh·아래쪽 1.4vh 여백까지 칸을 넓혀서 그 안에서 가운데 정렬)
      가로: '강수확률' 글자가 카드 왼쪽 끝 ~ 그래프 시작점의 한가운데. 숫자는 '%'까지 포함해서 같은 중심선에 */
   .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
-    margin:-3.7vh 0 -1.4vh;padding:0 .5vh 0 0}
+    margin:calc(-3.7 * var(--vh)) 0 calc(-1.4 * var(--vh));padding:0 calc(.5 * var(--vh)) 0 0}
   /* 크기 4.5vh: 가장 넓은 "100%"도 '강수확률' 글자 폭을 넘지 않게. 고정폭·자간 보정은 꺼서 '1' 같은 좁은 숫자 쏠림 방지 */
-  #d-rain{font-size:4.5vh;font-weight:600;line-height:1.05;color:var(--rain);font-variant-numeric:normal;letter-spacing:0}
+  #d-rain{font-size:calc(4.5 * var(--vh));font-weight:600;line-height:1.05;color:var(--rain);font-variant-numeric:normal;letter-spacing:0}
   /* '%'까지 포함한 숫자 묶음 전체를 가운데 정렬 (세 자리여도 그래프에 닿지 않게) */
   #d-rain .pct{font-size:.47em;margin-left:.08em}
-  #rain-chart{min-height:14vh;position:relative}
+  #rain-chart{min-height:calc(14 * var(--vh));position:relative}
   #rain-chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 
   /* ===== 시장 ===== */
-  .sessions{display:flex;justify-content:center;gap:2.4vw;font-size:2.6vh;white-space:nowrap;overflow:hidden;min-width:0}
+  .sessions{display:flex;justify-content:center;gap:2.4vw;font-size:calc(2.6 * var(--vh));white-space:nowrap;overflow:hidden;min-width:0}
   .sess{display:flex;align-items:center;gap:.6vw}
-  .sess .dot{width:1.4vh;height:1.4vh;border-radius:50%;flex:none;background:var(--closed)}
+  .sess .dot{width:calc(1.4 * var(--vh));height:calc(1.4 * var(--vh));border-radius:50%;flex:none;background:var(--closed)}
   .sess .name{color:var(--sub)}
   .sess .state{font-weight:700}
-  .sess.open .dot{background:var(--open);box-shadow:0 0 1.2vh var(--open)}
-  .sess.ext .dot{background:var(--ext);box-shadow:0 0 1.2vh var(--ext)}
+  .sess.open .dot{background:var(--open);box-shadow:0 0 calc(1.2 * var(--vh)) var(--open)}
+  .sess.ext .dot{background:var(--ext);box-shadow:0 0 calc(1.2 * var(--vh)) var(--ext)}
 
   .row{display:grid;gap:1vw;min-height:0}
   .tile{background:var(--card);border-radius:var(--r);overflow:hidden;position:relative;min-height:0;min-width:0;
@@ -123,27 +123,27 @@
   .tv-inner .tradingview-widget-container,
   .tv-inner .tradingview-widget-container__widget{width:100%;height:100%}
 
-  footer{grid-area:foot;display:flex;justify-content:space-between;gap:2vw;font-size:2.2vh;color:var(--bad)}
+  footer{grid-area:foot;display:flex;justify-content:space-between;gap:2vw;font-size:calc(2.2 * var(--vh));color:var(--bad)}
   footer.empty{display:none}   /* 메모도 없고 오류도 없으면 줄 자체를 없앰 */
   /* 하단 줄이 숨겨지면 그 줄 칸과 줄 간격도 없애서, 카드가 화면 아래 여백까지 내려오게 */
-  #app:has(footer.empty){grid-template-rows:29vh minmax(0,1fr);grid-template-areas:"clock mtop" "weather mbody"}
-  #memo{color:var(--sub);font-size:2.8vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #app:has(footer.empty){grid-template-rows:calc(29 * var(--vh)) minmax(0,1fr);grid-template-areas:"clock mtop" "weather mbody"}
+  #memo{color:var(--sub);font-size:calc(2.8 * var(--vh));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* 세로 화면(또는 세로로 긴 창): 위아래로 쌓고 크기 줄임 */
   @media (orientation: portrait){
-    #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:1.6vh;
+    #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:calc(1.6 * var(--vh));
       grid-template-areas:"clock" "weather" "mtop" "mbody" "foot"}
-    .a-weather{gap:1.4vh} .a-mtop{min-height:22vh}
-    .time{--T:10vh}
-    #w-icon{width:5.5vh;height:5.5vh} #w-temp{font-size:6vh}
-    .temps .v{font-size:6vh} #d-rain{font-size:3.2vh}
-    #rain-chart{min-height:15vh}
+    .a-weather{gap:calc(1.4 * var(--vh))} .a-mtop{min-height:calc(22 * var(--vh))}
+    .time{--T:calc(10 * var(--vh))}
+    #w-icon{width:calc(5.5 * var(--vh));height:calc(5.5 * var(--vh))} #w-temp{font-size:calc(6 * var(--vh))}
+    .temps .v{font-size:calc(6 * var(--vh))} #d-rain{font-size:calc(3.2 * var(--vh))}
+    #rain-chart{min-height:calc(15 * var(--vh))}
   }
 
   /* ===== 시계 모드 (00~06시 자동 / 평소엔 큰 시계를 눌러서) — 화면 아무 곳이나 누르면 원래 화면 ===== */
   /* 전환 모션: 기본 화면의 큰 시계 자리에서 시계 모드가 커지며 나타나고, 기본 화면은 살짝 커지며 사라짐 (반대도 동일)
      --ease: 끝에서 부드럽게 감속하는 iOS풍 곡선 */
-  :root{--ease:cubic-bezier(.22,.9,.24,1);--dur:.55s}
+  :root{--vh:1vh;--ease:cubic-bezier(.22,.9,.24,1);--dur:.55s}
   /* space-evenly: 왼쪽 여백 = 가운데 간격 = 오른쪽 여백, 화면 크기가 바뀌면 자동으로 다시 나눔 */
   #clockview{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-evenly;gap:0;
     background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;
@@ -156,7 +156,7 @@
     transition:opacity .38s ease,transform var(--dur) var(--ease),visibility 0s}
   body.clockmode #app{opacity:0;transform:scale(1.08);visibility:hidden;pointer-events:none;
     transition:opacity .3s ease,transform var(--dur) var(--ease),visibility 0s linear var(--dur)}
-  #analog{width:74vh;height:74vh;flex:none}
+  #analog{width:calc(74 * var(--vh));height:calc(74 * var(--vh));flex:none}
   #analog .face{fill:none;stroke:var(--line);stroke-width:1}
   #analog .tk{stroke:var(--dim);stroke-linecap:round}
   #analog .tk.major{stroke:var(--sub)}
@@ -165,19 +165,19 @@
   #analog .cap{fill:var(--bg);stroke:var(--hand-s);stroke-width:1.6}
   /* 바늘 회전: 중심(100,100) 기준. 초침은 애니메이션 없이 1초마다 딱 끊어서 이동 */
   #analog .hh,#analog .mh,#analog .sh{transform-origin:100px 100px}
-  .digi-box{--T:16vh;width:calc(var(--T) * 2.7)}   /* 폭 고정: 숫자 폭이 바뀌어도 원형 시계가 좌우로 움직이지 않게 */
+  .digi-box{--T:calc(16 * var(--vh));width:calc(var(--T) * 2.7)}   /* 폭 고정: 숫자 폭이 바뀌어도 원형 시계가 좌우로 움직이지 않게 */
   /* 미니 달력: 오늘만 채운 원, 일요일·토요일만 은은한 색 */
-  .cal{margin-top:5.2vh;display:grid;grid-template-columns:repeat(7,4.9vh);gap:.8vh .9vh;justify-content:center}   /* 날짜 줄과 간격을 넉넉히 */
-  .cal .w{font-size:1.9vh;color:var(--dim);text-align:center}
-  .cal .d{font-size:2.4vh;color:var(--sub);text-align:center;width:4.1vh;height:4.1vh;line-height:4.1vh;border-radius:50%;margin:0 auto}
+  .cal{margin-top:calc(5.2 * var(--vh));display:grid;grid-template-columns:repeat(7,calc(4.9 * var(--vh)));gap:calc(.8 * var(--vh)) calc(.9 * var(--vh));justify-content:center}   /* 날짜 줄과 간격을 넉넉히 */
+  .cal .w{font-size:calc(1.9 * var(--vh));color:var(--dim);text-align:center}
+  .cal .d{font-size:calc(2.4 * var(--vh));color:var(--sub);text-align:center;width:calc(4.1 * var(--vh));height:calc(4.1 * var(--vh));line-height:calc(4.1 * var(--vh));border-radius:50%;margin:0 auto}
   .cal .sun,.t-date .sun{color:#b5776f} .cal .sat,.t-date .sat{color:#6f93b5}   /* 일요일 빨강 · 토요일 파랑 (달력·날짜 공통) */
   .cal .today{background:var(--hand-s);color:var(--bg);font-weight:700}
 
   /* 원래 화면의 큰 시계를 누르면 시계 모드 */
   .time{cursor:pointer;-webkit-tap-highlight-color:transparent}
   /* 세로 화면용 시계 모드 (기본 규칙보다 뒤에 있어야 적용됨) */
-  @media (orientation: portrait){ #clockview{flex-direction:column} #analog{width:44vh;height:44vh} .digi-box{--T:9vh}
-    .cal{margin-top:3vh;grid-template-columns:repeat(7,3.6vh)} .cal .d{width:2.9vh;height:2.9vh;line-height:2.9vh;font-size:1.7vh} }
+  @media (orientation: portrait){ #clockview{flex-direction:column} #analog{width:calc(44 * var(--vh));height:calc(44 * var(--vh))} .digi-box{--T:calc(9 * var(--vh))}
+    .cal{margin-top:calc(3 * var(--vh));grid-template-columns:repeat(7,calc(3.6 * var(--vh)))} .cal .d{width:calc(2.9 * var(--vh));height:calc(2.9 * var(--vh));line-height:calc(2.9 * var(--vh));font-size:calc(1.7 * var(--vh))} }
 </style>
 </head>
 <body>
@@ -248,6 +248,22 @@
 </div>
 
 <script id="main-js">
+function setVh() { document.documentElement.style.setProperty("--vh", `${window.innerHeight / 100}px`); }
+setVh();
+
+// 점검용: 주소 끝에 ?debug 를 붙이면 화면 크기 정보를 왼쪽 위에 작게 표시
+if (/[?&]debug\b/.test(location.search)) addEventListener("load", () => {
+  const pr = document.createElement("div");
+  pr.style.cssText = "position:fixed;left:0;top:0;width:0;height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);visibility:hidden";
+  document.body.append(pr);
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:4px;top:4px;z-index:99;font:12px/1.4 monospace;background:#000c;color:#ff0;padding:4px 6px;pointer-events:none";
+  document.body.append(box);
+  const upd = () => { const cs = getComputedStyle(pr);
+    box.textContent = `창 ${innerWidth}×${innerHeight} · 100vh=${Math.round(pr.getBoundingClientRect().height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))} · 안전영역 위 ${cs.paddingTop} 아래 ${cs.paddingBottom}`; };
+  upd(); addEventListener("resize", upd);
+});
+
 /* =====================================================================
    설정 — 여기만 고치면 돼요
    (GitHub Pages는 공개 페이지라서 보유 수량, 금액, 일정 같은 개인 정보는 넣지 마세요)
@@ -709,13 +725,22 @@ function fitTiles() {
       const S = CONFIG.SCREENER;
       const zW = t.clientWidth / S.VISIBLE_W;
       const zR = t.clientHeight / (S.HEAD_PX + S.ROW_PX * CONFIG.GROUP.SHOW_ROWS);
-      const z = Math.max(0.5, S.FIT === "rows" ? Math.min(base * T.ZOOM_GROUP, zW, zR) : zW);
+      let z = Math.max(0.5, S.FIT === "rows" ? Math.min(base * T.ZOOM_GROUP, zW, zR) : zW);
+      const W = t.clientWidth, H = t.clientHeight, rowsAt = (zz) => Math.max(1, Math.floor((H / zz - S.HEAD_PX) / S.ROW_PX));
+      let rows = Math.min(rowsAt(z), CONFIG.GROUP.SHOW_ROWS);
+      // 폭에 맞추면 아래에 한 줄이 채 안 되는 빈칸이 남을 수 있음(화면 높이에 따라 0~1줄).
+      // 한 줄 더 넣으려고 살짝 줄였을 때 버려지는 면적(좌우 여백)이 아래 빈칸보다 작으면 그쪽을 택함.
+      if (S.FIT !== "rows" && rows < CONFIG.GROUP.SHOW_ROWS) {
+        const z2 = H / (S.HEAD_PX + S.ROW_PX * (rows + 1));
+        const wasteNow = (H - (S.HEAD_PX + S.ROW_PX * rows) * z) * W;
+        const waste2 = (W - S.VISIBLE_W * z2) * H;
+        if (z2 >= 0.5 && waste2 < wasteNow) { z = z2; rows += 1; }
+      }
       t.style.setProperty("--z", z.toFixed(3));
       const clip = t.querySelector(".clip");
       clip.style.width = `${S.VISIBLE_W * z}px`;
       // 반쯤 잘린 줄이 보이지 않게, 다 들어가는 줄까지만 보여줌
-      const fitRows = Math.max(1, Math.floor((t.clientHeight / z - S.HEAD_PX) / S.ROW_PX));
-      clip.style.height = `${(S.HEAD_PX + S.ROW_PX * Math.min(fitRows, CONFIG.GROUP.SHOW_ROWS)) * z}px`;
+      clip.style.height = `${(S.HEAD_PX + S.ROW_PX * rows) * z}px`;
       clip.querySelector(".tv-inner").style.width = `${S.INNER_W}px`;
       return;
     }
@@ -909,7 +934,9 @@ async function checkUpdate() {
   } catch (e) {}
 }
 setInterval(checkUpdate, CONFIG.UPDATE_CHECK_MIN * 60 * 1000);
-window.addEventListener("resize", () => { fitTiles(); fitClockSet(); });
+// 화면 높이 단위: CSS의 vh 대신 실제 보이는 창 높이(innerHeight)로 계산
+// 아이패드 홈 화면 앱에서는 100vh와 실제 창 높이가 달라, 아래에 빈칸이 남거나 스크립트 계산(innerHeight 기준)과 어긋날 수 있음
+window.addEventListener("resize", () => { setVh(); fitTiles(); fitClockSet(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitClockSet);
 if ("ResizeObserver" in window) new ResizeObserver(() => lastRain && drawRainChart(...lastRain)).observe($("rain-chart"));
 else window.addEventListener("resize", renderDay);
