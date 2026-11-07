@@ -32,7 +32,7 @@
   .label{font-size:2.8vh;color:var(--sub);font-weight:500}
 
   /* 레이아웃: 2단 × 2층. 위층(시계 | 장 상태+차트)과 아래층(날씨 | 시총)이 좌우 같은 높이에서 끊김 */
-  #app{position:absolute;inset:0;padding:max(3vh, calc(env(safe-area-inset-top) + 1vh)) 2.6vw 2.6vh;display:grid;gap:2.2vh 2.4vw;
+  #app{position:absolute;inset:0;padding:max(3vh, calc(env(safe-area-inset-top) + 1vh)) 2.6vw calc(3.8vh + env(safe-area-inset-bottom));display:grid;gap:2.2vh 2.4vw;
     grid-template-columns:minmax(0,43fr) minmax(0,57fr);grid-template-rows:29vh minmax(0,1fr) auto;
     grid-template-areas:"clock mtop" "weather mbody" "foot foot"}
   .a-clock{grid-area:clock;display:flex;align-items:flex-end;justify-content:center;min-height:0}   /* 날짜를 아래 카드 쪽에 붙임 */
@@ -49,7 +49,7 @@
   .tset .t-time{font-size:var(--T);font-weight:600;line-height:.9;color:var(--text);font-variant-numeric:normal;letter-spacing:0}
   .tset .t-date{display:flex;gap:1.4vw;align-items:baseline;flex-wrap:wrap;justify-content:center;
     margin-top:calc(var(--T) * .09);font-size:calc(var(--T) * .23);color:var(--sub);font-weight:500}
-  .time{--T:18vh}
+  .time{--T:17vh}
   #ddays:empty{display:none}   /* D-day가 없을 때 빈 칸이 간격을 차지해 날짜가 왼쪽으로 밀리던 문제 */
   #ddays b{color:var(--cold);font-weight:700;margin-left:.4vw}
 
@@ -58,20 +58,25 @@
   /* 날씨 열 바로 아래(카드 바깥) 오른쪽: 날씨·미세먼지를 언제 받아왔는지 한 줄
      화면 아래 여백 안에 들어가서 좌우 카드 높이 정렬은 그대로 */
   .a-weather{position:relative}
-  #stamp{position:absolute;right:.4vw;top:calc(100% + .5vh);font-size:1.7vh;color:var(--dim);white-space:nowrap}
+  #stamp{position:absolute;right:.4vw;top:calc(100% + .9vh);font-size:1.7vh;line-height:1;color:var(--dim);white-space:nowrap}   /* 아래 여백(3.8vh) 안에 여유 있게 들어감 */
   .now-l{display:flex;align-items:center;gap:1.2vw}
   .now-r{display:flex;flex-direction:column;align-items:flex-start;gap:.5vh;min-width:0}
   #w-icon{width:7vh;height:7vh;flex:none}
   #w-temp{font-size:7.5vh;font-weight:600;line-height:1;flex:none;padding-right:.35em}   /* 오른쪽 여백 = 매달린 '°' 자리 */
-  #w-air{font-size:3vh;color:var(--sub);display:flex;flex-direction:column;align-items:flex-start;gap:.2vh;white-space:nowrap}
+  /* 미세먼지: 2열 표 — 왼쪽 열 '미세/초미세', 오른쪽 열 등급. 각 열 안에서 가운데 정렬 (최저/최고 라벨과 같은 방식) */
+  #w-air{font-size:3vh;color:var(--sub);display:grid;grid-template-columns:auto auto;column-gap:.7em;row-gap:.2vh;align-items:baseline;justify-items:center;white-space:nowrap}
   #w-air b{font-weight:700}
 
   .day{background:var(--card);border-radius:var(--r);padding:1.8vh 1.6vw 1.4vh;display:grid;
-    grid-template-rows:auto auto 1fr;gap:1.2vh;min-height:0}
+    grid-template-rows:auto auto 1fr;gap:2.6vh;min-height:0}   /* 제목 ↔ 최저·최고 ↔ (구분선) 사이 간격 동일 */
   .day-head{display:flex;justify-content:space-between;align-items:baseline}
   #day-title{font-size:3.6vh;font-weight:700;display:flex;align-items:center;gap:.8vw}
   #day-title .emo{font-size:1.1em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-  #day-title .tmr{font-size:2.4vh;font-weight:600;color:var(--bg);background:var(--sub);border-radius:99px;padding:.3vh .8vw}
+  /* 오늘/내일 배지: 오늘은 시계 모드의 '오늘' 원과 같은 아이스 블루, 내일은 앰버 */
+  #day-title .tag{font-size:2.4vh;font-weight:700;border-radius:99px;padding:.35vh .9vw;line-height:1.2}
+  #day-title .tag.today{color:var(--hand-s);background:rgba(143,200,245,.16)}
+  #day-title .tag.tmr{color:#ffb547;background:rgba(255,181,71,.16)}
+  .day{cursor:pointer;-webkit-tap-highlight-color:transparent}
   /* 최저 | 최고: 같은 폭 두 칸 + 가는 세로 구분선 (위 현재 기온 카드와 같은 분할 방식) */
   .temps{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center}
   .temps .t{display:flex;flex-direction:column;align-items:center;gap:.2vh}
@@ -82,8 +87,13 @@
   .deg::after{content:"°";position:absolute;left:0;top:0}
   #d-max{color:var(--hot)} #d-min{color:var(--cold)}
   /* 2층: 강수 — 숫자와 그래프를 한 묶음으로, 기온보다 한 단계 작게 */
-  .rain-sec{display:grid;grid-template-columns:auto 1fr;gap:1.4vw;border-top:1px solid var(--line);padding-top:1.4vh;min-height:0}
-  .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-width:12vh;padding-right:1.6vh}
+  /* 구분선 ↔ 강수 블록도 눈에 보이는 간격이 위 두 간격과 같도록(글자 윗여백 차이 보정해 3.7vh). 강수 라벨과 그래프 맨 윗선을 같은 높이에서 시작 */
+  .rain-sec{display:grid;grid-template-columns:15vh 1fr;gap:0;border-top:1px solid var(--line);padding-top:3.7vh;min-height:0}
+  /* 강수 숫자 묶음: 세로는 그래프 맨 윗선~시간 라벨 줄의 한가운데, 가로는 카드 왼쪽 끝~그래프 시작점의 한가운데 */
+  /* 세로: 위 구분선 ~ 카드 바닥의 한가운데 (위쪽 3.7vh·아래쪽 1.4vh 여백까지 칸을 넓혀서 그 안에서 가운데 정렬)
+     가로: 카드 왼쪽 끝 ~ 그래프 시작점의 한가운데 (오른쪽 2.5vh로 카드 안쪽 여백 차이 보정) */
+  .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    margin:-3.7vh 0 -1.4vh;padding:0 2.5vh 0 0}
   #d-rain{font-size:6.4vh;font-weight:600;line-height:1.05;color:var(--rain)}
   /* '%'는 '°'처럼 폭에서 빼서 숫자만 가운데 정렬 */
   .hang{position:relative;display:inline-block;width:0;height:0}
@@ -99,6 +109,7 @@
   .sess .state{font-weight:700}
   .sess .until{color:var(--sub)}
   .sess .until:not(:empty)::before{content:"· "}
+  .sess .until:empty{display:none}   /* 휴장 등 끝나는 시각이 없을 때 빈 칸이 간격을 차지해 줄이 왼쪽으로 밀리던 문제 */
   .sess.open .dot{background:var(--open);box-shadow:0 0 1.2vh var(--open)}
   .sess.ext .dot{background:var(--ext);box-shadow:0 0 1.2vh var(--ext)}
 
@@ -115,6 +126,8 @@
 
   footer{grid-area:foot;display:flex;justify-content:space-between;gap:2vw;font-size:2.2vh;color:var(--bad)}
   footer.empty{display:none}   /* 메모도 없고 오류도 없으면 줄 자체를 없앰 */
+  /* 하단 줄이 숨겨지면 그 줄 칸과 줄 간격도 없애서, 카드가 화면 아래 여백까지 내려오게 */
+  #app:has(footer.empty){grid-template-rows:29vh minmax(0,1fr);grid-template-areas:"clock mtop" "weather mbody"}
   #memo{color:var(--sub);font-size:2.8vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* 세로 화면(또는 세로로 긴 창): 위아래로 쌓고 크기 줄임 */
@@ -128,13 +141,22 @@
     #rain-chart{min-height:15vh}
   }
 
-  /* ===== 시계 모드 (00~06시 자동 / 평소엔 버튼으로) — 화면 아무 곳이나 누르면 원래 화면 ===== */
-  #clockview{position:fixed;inset:0;display:none;align-items:center;justify-content:center;gap:5.6vw;
-    background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent}
-  @media (orientation: portrait){ #clockview{flex-direction:column;gap:4vh} #analog{width:44vh;height:44vh} .digi-box{--T:9vh}
-    .cal{grid-template-columns:repeat(7,3.6vh)} .cal .d{width:2.9vh;height:2.9vh;line-height:2.9vh;font-size:1.7vh} }
-  body.clockmode #clockview{display:flex}
-  body.clockmode #app{display:none}
+  /* ===== 시계 모드 (00~06시 자동 / 평소엔 큰 시계를 눌러서) — 화면 아무 곳이나 누르면 원래 화면 ===== */
+  /* 전환 모션: 기본 화면의 큰 시계 자리에서 시계 모드가 커지며 나타나고, 기본 화면은 살짝 커지며 사라짐 (반대도 동일)
+     --ease: 끝에서 부드럽게 감속하는 iOS풍 곡선 */
+  :root{--ease:cubic-bezier(.22,.9,.24,1);--dur:.55s}
+  /* space-evenly: 왼쪽 여백 = 가운데 간격 = 오른쪽 여백, 화면 크기가 바뀌면 자동으로 다시 나눔 */
+  #clockview{position:fixed;inset:0;display:flex;align-items:center;justify-content:space-evenly;gap:0;
+    background:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;
+    opacity:0;visibility:hidden;pointer-events:none;transform:scale(.42);transform-origin:var(--ox,25%) var(--oy,20%);
+    transition:opacity .38s ease,transform var(--dur) var(--ease),visibility 0s linear var(--dur)}
+  #app{transform-origin:var(--ox,25%) var(--oy,20%);
+    transition:opacity .45s ease .05s,transform var(--dur) var(--ease),visibility 0s linear 0s}
+  @media (prefers-reduced-motion: reduce){ #clockview,#app{transition:none !important} }
+  body.clockmode #clockview{opacity:1;visibility:visible;pointer-events:auto;transform:none;
+    transition:opacity .38s ease,transform var(--dur) var(--ease),visibility 0s}
+  body.clockmode #app{opacity:0;transform:scale(1.08);visibility:hidden;pointer-events:none;
+    transition:opacity .3s ease,transform var(--dur) var(--ease),visibility 0s linear var(--dur)}
   #analog{width:74vh;height:74vh;flex:none}
   #analog .face{fill:none;stroke:var(--line);stroke-width:1}
   #analog .tk{stroke:var(--dim);stroke-linecap:round}
@@ -154,6 +176,9 @@
 
   /* 원래 화면의 큰 시계를 누르면 시계 모드 */
   .time{cursor:pointer;-webkit-tap-highlight-color:transparent}
+  /* 세로 화면용 시계 모드 (기본 규칙보다 뒤에 있어야 적용됨) */
+  @media (orientation: portrait){ #clockview{flex-direction:column} #analog{width:44vh;height:44vh} .digi-box{--T:9vh}
+    .cal{margin-top:3vh;grid-template-columns:repeat(7,3.6vh)} .cal .d{width:2.9vh;height:2.9vh;line-height:2.9vh;font-size:1.7vh} }
 </style>
 </head>
 <body>
@@ -305,9 +330,10 @@ const TZ = "Asia/Seoul";
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, "0");
 
+const _fmt = {};                                       // 시간대별 날짜 형식기 캐시
 function partsIn(tz, d = new Date()) {
-  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false,
-    weekday: "short", hour: "2-digit", minute: "2-digit", year: "numeric", month: "2-digit", day: "2-digit" });
+  const f = _fmt[tz] || (_fmt[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false,
+    weekday: "short", hour: "2-digit", minute: "2-digit", year: "numeric", month: "2-digit", day: "2-digit" }));
   const o = Object.fromEntries(f.formatToParts(d).map(p => [p.type, p.value]));
   const hour = Number(o.hour) % 24;
   return { wd: o.weekday, h: hour, m: Number(o.minute), mins: hour * 60 + Number(o.minute),
@@ -353,7 +379,8 @@ const syncFooter = () => document.querySelector("footer").classList.toggle("empt
 function renderClock() {
   const now = new Date(), p = partsIn(TZ, now);
   $("clock").textContent = `${pad(p.h)}:${pad(p.m)}`;
-  $("date").textContent = new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" }).format(now);
+  _fmt.date = _fmt.date || new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" });
+  $("date").textContent = _fmt.date.format(now);
   const today = new Date(p.ymd + "T00:00:00+09:00");
   $("ddays").innerHTML = CONFIG.DDAYS.filter(d => d.label && d.date).map(d => {
     const diff = Math.round((new Date(d.date + "T00:00:00+09:00") - today) / 86400000);
@@ -451,6 +478,43 @@ async function updateWeather() {
   }
 }
 
+/* 날씨 카드 누르기: 오늘 ↔ 내일을 15초 동안 바꿔 보여주고, 그 뒤 시간대에 맞는 쪽으로 돌아감
+   바뀔 때는 시계 모드처럼 줄어들며 사라지고 → 커지며 나타나는 모션 */
+let dayPeek = null;                                   // { view: "today"|"tmr", timer }
+const PEEK_SEC = 15;
+async function swapDay(update) {
+  const els = [...$("day").children];
+  const ease = "cubic-bezier(.22,.9,.24,1)";
+  if (!els[0].animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { update(); return; }
+  // 연속으로 누르면 앞 모션이 취소될 수 있음 → 취소돼도 내용 갱신은 반드시 실행
+  await Promise.all(els.map(el => el.animate(
+    [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.94)" }],
+    { duration: 180, easing: "ease-in", fill: "forwards" }).finished)).catch(() => {});
+  update();
+  els.forEach(el => {
+    el.getAnimations().forEach(a => a.cancel());
+    el.animate([{ opacity: 0, transform: "scale(1.05)" }, { opacity: 1, transform: "scale(1)" }], { duration: 480, easing: ease });
+  });
+}
+function endPeek() {
+  if (!dayPeek) return;
+  clearTimeout(dayPeek.timer);
+  dayPeek = null;
+  const before = $("day").dataset.view;
+  const p = partsIn(TZ), def = p.h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today";
+  if (before !== def) swapDay(renderDay); else renderDay();
+}
+$("day").addEventListener("click", () => {
+  if (!lastWeather) return;
+  const shown = $("day").dataset.view || "today";
+  const next = shown === "today" ? "tmr" : "today";
+  const def = partsIn(TZ).h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today";
+  if (dayPeek) clearTimeout(dayPeek.timer);
+  // 시간대 기본 화면으로 되돌리는 터치면 타이머 없이 그대로 둠, 반대쪽을 보는 경우에만 15초 뒤 복귀
+  dayPeek = next === def ? null : { view: next, timer: setTimeout(endPeek, PEEK_SEC * 1000) };
+  swapDay(renderDay);
+});
+
 function renderDay() {
   const d = lastWeather;
   if (!d) return;
@@ -460,12 +524,16 @@ function renderDay() {
     if (Date.now() - (renderDay.lastForce || 0) > 60 * 1000) { renderDay.lastForce = Date.now(); updateWeather(); }   // 1분에 한 번만
     return;
   }
-  const isTmr = p.h >= CONFIG.TOMORROW_FROM_HOUR && todayIdx + 1 < d.daily.time.length;   // 저녁부터는 내일 기준
+  const hasTmr = todayIdx + 1 < d.daily.time.length;
+  // 기본: 18시부터 내일. 카드를 눌렀으면 15초 동안은 누른 쪽(dayPeek)을 보여줌
+  const want = dayPeek ? dayPeek.view : (p.h >= CONFIG.TOMORROW_FROM_HOUR ? "tmr" : "today");
+  const isTmr = want === "tmr" && hasTmr;
+  $("day").dataset.view = isTmr ? "tmr" : "today";
   const idx = todayIdx + (isTmr ? 1 : 0);
   const dayStr = d.daily.time[idx];
   const [ddesc, dicon] = wmo(d.daily.weather_code[idx]);
-  // 상태만 색으로 구별해서 표시. 18시 이후 내일 예보일 때만 작은 '내일' 표시를 붙임
-  $("day-title").innerHTML = (isTmr ? `<span class="tmr">내일</span>` : "")
+  // 오늘/내일 배지 + 날씨 상태(색으로 구별)
+  $("day-title").innerHTML = (isTmr ? `<span class="tag tmr">내일</span>` : `<span class="tag today">오늘</span>`)
     + `<span class="emo">${SKY_EMOJI[ddesc] || ""}</span><span style="color:${SKY_COLOR[dicon]}">${ddesc}</span>`;
   $("d-max").innerHTML = degHTML(d.daily.temperature_2m_max[idx]);
   $("d-min").innerHTML = degHTML(d.daily.temperature_2m_min[idx]);
@@ -488,8 +556,9 @@ function drawRainChart(hours, probs, nowH) {
   if (!W || !H) { requestAnimationFrame(() => box.clientHeight && drawRainChart(hours, probs, nowH)); return; }
   const C = { rain: cssVar("--rain"), line: cssVar("--line"), dim: cssVar("--dim"), sub: cssVar("--sub"), text: cssVar("--text") };
   const vh = window.innerHeight / 100;
-  const fs = Math.round(2.6 * vh);                 // 축 글씨
-  const padL = fs * 0.6, padR = fs * 0.6, padT = fs * 1.6, padB = fs * 1.7;
+  const fs = Math.round(2.6 * vh);                 // 최고점 라벨 기준 크기
+  const afs = Math.round(2.2 * vh);                // 시간 눈금 글씨 (조금 작게)
+  const padL = fs * 0.6, padR = fs * 0.45, padT = fs * 0.35, padB = afs * 1.9;   // 위 여백 최소(맨 윗선 = 강수 라벨 높이), 오른쪽 여백은 왼쪽 여백과 같아지도록
   const x = (h) => padL + (h / 23) * (W - padL - padR);
   const y = (v) => padT + (1 - v / 100) * (H - padT - padB);
   const pts = probs.map((v, i) => [x(hours[i]), y(v)]);
@@ -504,9 +573,10 @@ function drawRainChart(hours, probs, nowH) {
   const area = `${path} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z`;
 
   const max = Math.max(...probs), mi = probs.indexOf(max);
-  const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="${C.line}" stroke-width="1"/>`
-    ).join("");
-  const xl = [0, 6, 12, 18].map(h => `<text x="${x(h)}" y="${H - fs * 0.25}" fill="${C.sub}" font-size="${fs}" text-anchor="${h === 0 ? "start" : "middle"}">${h}시</text>`).join("");
+  // 눈금선: 가로(0·50·100%)와 세로(0·6·12·18·23시)를 같은 색·굵기로
+  const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="${C.line}" stroke-width="1"/>`).join("")
+    + [0, 6, 12, 18, 23].map(h => `<line x1="${x(h)}" x2="${x(h)}" y1="${y(100)}" y2="${y(0)}" stroke="${C.line}" stroke-width="1"/>`).join("");
+  const xl = [0, 6, 12, 18].map(h => `<text x="${x(h)}" y="${H - afs * 0.3}" fill="${C.sub}" font-size="${afs}" text-anchor="${h === 0 ? "start" : "middle"}">${h}시</text>`).join("");
 
   // 지나간 시간은 흐리게: 현재 시각 기준으로 잘라서 두 번 그림
   const cut = nowH != null ? x(Math.min(23, nowH)) : padL;
@@ -545,7 +615,7 @@ async function updateAir() {
     const d = await fetchJSON(url);
     const [g25, c25] = grade(Math.round(d.current.pm2_5), [15, 35, 75]);
     const [g10, c10] = grade(Math.round(d.current.pm10), [30, 80, 150]);
-    $("w-air").innerHTML = `<span>미세 <b style="color:${c10}">${g10}</b></span><span>초미세 <b style="color:${c25}">${g25}</b></span>`;
+    $("w-air").innerHTML = `<span>미세</span><b style="color:${c10}">${g10}</b><span>초미세</span><b style="color:${c25}">${g25}</b>`;
     setStatus("a", "");
   } catch (e) {
     setStatus("a", "미세먼지 갱신 실패");
@@ -625,7 +695,7 @@ function clearMarkets() { $("row-stocks").innerHTML = ""; $("row-group").innerHT
 
 /* ---------- 시계 모드 ----------
    - 야간(00~06시): 자동으로 시계 모드. 누르면 원래 화면 → IDLE_SEC초 동안 안 만지면 다시 시계 모드
-   - 06시가 되면 자동 시계 모드는 풀림 (낮에 버튼으로 켠 시계 모드는 누를 때까지 유지)
+   - 06시가 되면 자동 시계 모드는 풀림 (낮에 큰 시계를 눌러 켠 시계 모드는 누를 때까지 유지)
    - 상태는 body의 class/data 값으로 판단 (clockmode = 시계 모드 중, data-clock = auto/manual) */
 const body = document.body;
 const isNight = () => {
@@ -637,12 +707,21 @@ function armIdle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => { idleTimer = null; if (isNight()) enterClock("auto"); }, CONFIG.NIGHT.IDLE_SEC * 1000);
 }
+// 모션의 기준점: 기본 화면 큰 시계의 중심 → 그 자리에서 커지고, 그 자리로 줄어듦
+function setMotionOrigin() {
+  const r = $("clock").getBoundingClientRect();
+  if (!r.width) return;                                // 화면에 안 보일 때는 이전 값 유지
+  const ox = `${r.left + r.width / 2}px`, oy = `${r.top + r.height / 2}px`;
+  [$("clockview"), $("app")].forEach(el => { el.style.setProperty("--ox", ox); el.style.setProperty("--oy", oy); });
+}
 function enterClock(reason) {
   clearTimeout(idleTimer); idleTimer = null;
+  setMotionOrigin();
+  renderAnalog();
   body.classList.add("clockmode");
   body.dataset.clock = reason;
-  renderAnalog();
-  if (isNight()) clearMarkets();                       // 밤에는 시세 위젯을 내려서 CPU 절약
+  // 밤에는 시세 위젯을 내려서 CPU 절약 — 모션이 끝난 뒤, 그때도 시계 모드일 때만
+  setTimeout(() => { if (isNight() && body.classList.contains("clockmode")) clearMarkets(); }, 700);
 }
 function exitClock() {
   body.classList.remove("clockmode");
@@ -727,11 +806,15 @@ async function keepAwake() {
 function tick() { renderClock(); renderSessions(); applyNight(); }
 tick(); updateWeather(); updateAir(); rotateMemo(); keepAwake();
 setInterval(tick, 15 * 1000);
-setInterval(() => {                                          // 시계는 매초 확인해서 분이 바뀌는 즉시 반영
+// 시계: '1초마다'가 아니라 '다음 초가 바뀌는 순간'에 맞춰 갱신 → 실제 시각보다 늦게 넘어가지 않음
+// 매번 다음 초 경계(+15ms 여유)를 새로 계산하므로, 아이패드가 바빠서 한 번 밀려도 늦음이 쌓이지 않음
+function secondTick() {
   const p = partsIn(TZ), hm = `${pad(p.h)}:${pad(p.m)}`;
   if ($("clock").textContent !== hm) renderClock();
   if (body.classList.contains("clockmode")) renderAnalog();
-}, 1000);
+  setTimeout(secondTick, 1000 - (Date.now() % 1000) + 15);
+}
+secondTick();
 setInterval(renderDay, 5 * 60 * 1000);                       // '지금' 선 이동, 오늘→내일 전환
 setInterval(updateWeather, CONFIG.REFRESH_WEATHER_MIN * 60 * 1000);
 setInterval(updateAir, CONFIG.REFRESH_WEATHER_MIN * 60 * 1000);
