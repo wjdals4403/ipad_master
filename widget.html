@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="대시보드">
 <meta name="theme-color" content="#000000">
 <title>대시보드</title>
+<!-- 애플 기기는 시스템 글꼴(SF·Apple SD Gothic Neo)을 그대로 쓰고, 그 글꼴이 없는 기기(윈도우 크롬 등)만
+     애플 글꼴과 모양·폭이 가까운 Pretendard로 대신 그림. 필요한 글자 조각만 받아서 애플 기기에서는 내려받지 않음 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <style id="main-css">
   /* =====================================================================
      디자인: Claude Design 캔버스(1112×814)를 그대로 옮김
@@ -26,7 +29,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,sans-serif;
     -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;
     -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;
     -webkit-touch-callout:none;touch-action:manipulation;overscroll-behavior:none}
@@ -44,18 +47,24 @@
   /* ===== 시계 (시계 모드와 같은 모양) — 시세 카드 줄 높이 안에서 세로 가운데 ===== */
   .a-clock{display:flex;flex-direction:column;justify-content:center;align-items:center;padding-top:39px;min-width:0;min-height:0}
   .tset{display:flex;flex-direction:column;align-items:center}
-  .t-time{font-size:133px;font-weight:700;line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .t-date{margin-top:12px;font-size:31px;font-weight:500;color:var(--sub);letter-spacing:-.01em;white-space:nowrap}
+  /* 시각 숫자는 고정폭을 끔: 고정폭 '1'은 양옆 빈 공간 때문에 글자가 한쪽으로 쏠려 보임
+     → 비례폭으로 그리고, 스크립트(centerInk)가 실제 칠해진 글자 모양의 가운데를 칸 가운데에 맞춤 */
+  .t-time{font-size:133px;font-weight:700;line-height:.9;letter-spacing:0;font-variant-numeric:normal;white-space:nowrap}
+  .t-date{margin-top:12px;font-size:31px;font-weight:500;color:var(--sub);letter-spacing:0;white-space:nowrap}
 
   /* ===== 장 상태 + 시세 카드 3개 ===== */
   .a-mtop{display:grid;grid-template-rows:auto minmax(0,1fr);gap:13px;min-width:0;min-height:0}
   .sessions{height:26px;display:flex;align-items:center;justify-content:center;gap:32px;white-space:nowrap;overflow:hidden}
   .sess{display:flex;align-items:center;gap:8px;font-size:22px;line-height:1.2}
-  .sess .dot{width:12px;height:12px;flex:none;border-radius:50%;background:var(--dim)}
+  /* 장 상태 점: 시장마다 고유 색 (한국 라임 · 미국 오렌지)
+     정규장 = 그 시장 색으로 채운 점 / 프리·애프터·데이마켓 = 그 시장 색 테두리 점 / 장 마감·휴장 = 회색 점 */
+  #sess-kr{--mk:#8BD450}
+  #sess-us{--mk:#FF9F43}
+  .sess .dot{width:12px;height:12px;flex:none;box-sizing:border-box;border-radius:50%;background:#8B95A1}
   .sess .name{font-weight:500;color:var(--sub)}
   .sess .state{font-weight:700;color:var(--sub)}
-  .sess.open .dot{background:var(--blue)}                                   /* 정규장: 채운 점 */
-  .sess.ext .dot{background:transparent;border:2.5px solid var(--blue)}    /* 프리·애프터·데이마켓: 테두리 점 */
+  .sess.open .dot{background:var(--mk)}
+  .sess.ext .dot{background:transparent;border:2.5px solid var(--mk)}
   .sess.open .state,.sess.ext .state{color:var(--text)}
   #row-stocks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;min-height:0}
 
@@ -64,14 +73,24 @@
   .card{background:var(--card);border-radius:20px;padding:20px;min-width:0;min-height:0}
 
   /* 현재 날씨: [아이콘 기온] ··· [미세/초미세 등급] */
-  .now{display:flex;align-items:center;justify-content:space-between;gap:12px;overflow:hidden}
-  .now-l{display:flex;align-items:center;gap:12px;flex:none;height:62px}
-  #w-icon{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;line-height:0}
+  /* 현재 날씨: 반반 + 가운데 구분선 — 구분선이 아래 카드의 최저|최고 구분선과 같은 세로축(카드 가운데)
+     왼쪽 칸 [아이콘 기온], 오른쪽 칸 [미세/초미세] 각각 칸 안에서 가운데 정렬 */
+  .now{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);column-gap:20px;align-items:center;overflow:hidden}
+  .now .vline{align-self:stretch;background:var(--line)}
+  .now-l{display:flex;align-items:center;justify-content:center;gap:14px;height:62px;min-width:0}   /* 아이콘 ↔ 기온 묶음 간격 */
+  #w-icon{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;line-height:0}
   #w-icon svg{display:block}
-  #w-temp{font-size:62px;font-weight:700;line-height:1;text-box:trim-both cap alphabetic;letter-spacing:-.02em;
-    padding-right:.3em;position:relative;white-space:nowrap;font-variant-numeric:tabular-nums}
-  #w-temp .deg{position:absolute;top:0;font-weight:400;line-height:1;text-box:trim-both cap alphabetic}
-  #w-air{display:grid;grid-template-columns:auto 86px;grid-auto-rows:26px;column-gap:8px;row-gap:10px;align-items:center;
+  /* 기온(위)·체감온도(아래)를 한 묶음으로, 묶음 전체가 카드 안쪽 높이(62px) 가운데에 오게.
+     글자 상자를 실제 글자 높이(대문자 높이~기준선)로 잘라서 계산 → 기온 약 40 + 간격 9 + 체감 약 12 */
+  .now-t{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:9px;min-width:0}
+  #w-temp{font-size:56px;font-weight:700;line-height:1;text-box:trim-both cap alphabetic;letter-spacing:-.02em;
+    padding-right:.3em;white-space:nowrap}
+  #w-feel{font-size:17px;font-weight:500;line-height:1;color:var(--sub);white-space:nowrap;text-box:trim-both cap alphabetic}
+  #w-feel:empty{display:none}
+  /* 기온 숫자 공통: 숫자(−포함)만 폭으로 치고 '°'는 오른쪽 위에 매달기 */
+  .n{position:relative;display:inline-block;line-height:1;text-box:trim-both cap alphabetic}
+  .n .deg{position:absolute;left:100%;top:0;font-weight:400;line-height:1;text-box:trim-both cap alphabetic}
+  #w-air{justify-self:center;display:grid;grid-template-columns:auto auto;grid-auto-rows:26px;column-gap:8px;row-gap:10px;align-items:center;
     font-size:22px;line-height:1;white-space:nowrap;flex:none}
   #w-air span{font-weight:500;color:var(--sub)}
   #w-air b{font-weight:700}
@@ -88,17 +107,35 @@
   #d-desc{height:34px;display:inline-flex;align-items:center;font-size:28px;font-weight:700;line-height:1;letter-spacing:-.01em;
     white-space:nowrap;text-box:trim-both cap alphabetic}
 
-  .temps{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);column-gap:20px}
-  .temps .t{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-  .temps .vline{background:var(--line)}
+  /* 최저·최고: [최저 칸 | 범위 막대 | 최고 칸] — 양쪽 글자 칸과 막대 길이는 항상 같은 크기로 고정
+     - 글자 칸(--tcol 100px) = 카드 안쪽 끝 ~ 막대 끝. 숫자는 그 가운데(카드 끝과 막대 사이 중간점)를 기준으로 가운데 정렬
+     - 숫자 폭이 --tmax(84px, 양옆 8px 여유)를 넘으면(−, 세 자리) 두 숫자를 같은 비율로 함께 줄임 (스크립트 setRange) */
+  .temps{--tcol:100px;--tmax:84px;display:grid;grid-template-columns:var(--tcol) minmax(0,1fr) var(--tcol);column-gap:0;align-items:center;height:36px}
+  .rv{font-size:48px;font-weight:700;line-height:1;letter-spacing:0;white-space:nowrap;text-box:trim-both cap alphabetic;min-width:0}
+  .rv{justify-self:center}
+  .rv .dg{font-weight:400}
+  .bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,#2F5FA8,#A8344F)}
+  /* 지금 기온 위치 (오늘 화면만) */
+  /* 이름을 장 상태 점(.sess .dot)과 겹치지 않게 .tdot으로 — 겹치면 장 상태 점이 이 위치 규칙을 받아 사라짐 */
+  .bar .tdot{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--text);box-shadow:0 0 0 3px var(--card)}
+  .bar .tdot.off{display:none}
   .label{font-size:22px;font-weight:500;line-height:1.2;color:var(--sub);white-space:nowrap}
-  .temps .v{font-size:48px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;position:relative;padding-right:.3em}
-  .temps .v .deg{position:absolute;font-weight:400}
 
   .rain-sec{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:20px;border-top:1px solid var(--line);padding-top:20px;min-height:0}
-  .rain-num{display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-end;gap:4px}
-  #d-rain{font-size:37px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-  #d-rain .pct{font-size:.5em;font-weight:500}
+  /* 왼쪽 열: 강수확률·강수량을 같은 위계·같은 형식(라벨 위, 숫자 아래)으로
+     - 두 묶음을 열 세로 가운데에 모아 배치 (묶음 사이 36px)
+     - 모두 '률' 글자 오른쪽 끝에 맞춰 오른쪽 정렬 */
+  .rain-num{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:36px}
+  .rn-top,.rn-amt{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .rain-num .label{font-size:19px;line-height:1;text-box:trim-both cap alphabetic}
+  /* 글자 크기는 스크립트(fitRainNum)가 '100%'의 폭 = '강수확률' 라벨 폭이 되도록 계산 */
+  .rn-num{font-size:37px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;text-box:trim-both cap alphabetic}
+  .rn-num .pct{font-size:.6em;font-weight:500}
+  /* 글자 상자 자르기를 지원하지 않는 Safari(18.2 미만): 묶음이 카드 높이를 넘지 않게 크기만 줄임 */
+  @supports not (text-box: trim-both cap alphabetic) {
+    #w-temp{font-size:46px;line-height:.78} #w-feel{font-size:15px} .now-t{gap:4px}
+    .temps{height:48px} .rn-top,.rn-amt{gap:2px}
+  }
   #rain-chart{position:relative;min-width:0;min-height:0}
   #rain-chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 
@@ -118,7 +155,9 @@
   /* ===== 바깥 아래 여백(25px) 한 줄: 왼쪽 열 오른쪽 끝 = 갱신 시각 / 오른쪽 열 오른쪽 끝 = 오류 ===== */
   #foot{position:absolute;left:25px;right:25px;bottom:0;height:25px;display:grid;
     grid-template-columns:minmax(0,38fr) minmax(0,62fr);column-gap:17px;align-items:center;
-    font-size:17px;font-weight:500;line-height:1;white-space:nowrap}
+    font-size:14px;font-weight:500;line-height:1;white-space:nowrap}
+  /* 글자 오른쪽 끝을 카드 모서리 곡률(20px) 안쪽에 맞춤 → 카드 안 내용과 같은 들여쓰기 */
+  #stamp,#status{padding-right:20px}
   #stamp{text-align:right;color:var(--ter);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
   #status{text-align:right;color:var(--err);overflow:hidden;text-overflow:ellipsis}
 
@@ -176,20 +215,27 @@
       <div class="card now">
         <div class="now-l">
           <div id="w-icon"></div>
-          <div id="w-temp">-</div>
+          <div class="now-t">
+            <div id="w-temp">-</div>
+            <div id="w-feel"></div>
+          </div>
         </div>
+        <div class="vline"></div>
         <div id="w-air"></div>
       </div>
 
       <div class="card day tap" id="day" role="button" aria-label="오늘·내일 날씨 바꿔 보기">
         <div id="day-title">&nbsp;</div>
-        <div class="temps">
-          <div class="t"><div class="label">최저</div><div id="d-min" class="v">-</div></div>
-          <div class="vline"></div>
-          <div class="t"><div class="label">최고</div><div id="d-max" class="v">-</div></div>
+        <div class="temps" id="temps" role="img" aria-label="최저·최고 기온">
+          <div class="rv lo" id="d-min">-</div>
+          <div class="bar"><span class="tdot off" id="t-dot"></span></div>
+          <div class="rv hi" id="d-max">-</div>
         </div>
         <div class="rain-sec">
-          <div class="rain-num"><div class="label">강수확률</div><div id="d-rain">-</div></div>
+          <div class="rain-num">
+            <div class="rn-top"><div class="label" id="rain-label">강수확률</div><div id="d-rain" class="rn-num">-</div></div>
+            <div class="rn-amt"><div class="label" id="amt-label">강수량</div><div id="d-amt" class="rn-num">-</div></div>
+          </div>
           <div id="rain-chart"></div>
         </div>
       </div>
@@ -321,13 +367,33 @@ function setStamp() {
 }
 
 /* ---------- 시계 ---------- */
+/* 글자 '잉크' 가운데 맞추기: 글자 상자의 가운데가 아니라 실제로 칠해진 모양의 가운데를 칸 가운데에 맞춤
+   (글꼴마다 숫자 양옆 여백이 달라 상자 기준으로 맞추면 몇 px씩 한쪽으로 쏠려 보임) */
+const _inkCtx = document.createElement("canvas").getContext("2d");
+function centerInk(el, text = el.textContent) {
+  try {
+    const cs = getComputedStyle(el);
+    _inkCtx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const m = _inkCtx.measureText(text);
+    if (!m.width || m.actualBoundingBoxRight == null) { el.style.transform = ""; return; }
+    const dx = m.width / 2 - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;   // 상자 가운데 − 잉크 가운데
+    el.style.transform = Math.abs(dx) >= 0.3 ? `translateX(${dx.toFixed(1)}px)` : "";
+  } catch (e) { el.style.transform = ""; }
+}
+function setText(el, t) { if (el.textContent !== t) { el.textContent = t; centerInk(el); } }
 function renderClock() {
   const now = new Date(), p = partsIn(TZ, now);
-  $("clock").textContent = `${pad(p.h)}:${pad(p.m)}`;
+  setText($("clock"), `${pad(p.h)}:${pad(p.m)}`);
   _fmt.date = _fmt.date || new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric", weekday: "long" });
-  const ds = _fmt.date.format(now);
-  if ($("date").textContent !== ds) $("date").textContent = ds;
+  setText($("date"), _fmt.date.format(now));
 }
+// 글꼴이 늦게 준비되면 다시 맞춤
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  ["clock", "date", "digital", "cv-date"].forEach(id => centerInk($(id)));
+  if (typeof fitNowTemp === "function") fitNowTemp();      // 글꼴이 늦게 준비되면 기온 칸 맞춤도 다시
+  if (typeof fitRainNum === "function") fitRainNum();      // 강수확률 숫자 폭도 다시
+  if (typeof renderDay === "function") renderDay();        // 최저·최고 가운데 맞춤도 새 글꼴로 다시
+});
 
 /* ---------- 장 상태 ----------
    국장(KST): 08:00 프리마켓(NXT) → 09:00 정규장 → 15:30 애프터마켓(NXT) → 20:00 마감
@@ -385,13 +451,63 @@ function wmo(code, isDay = 1) {
   return ["-", "cloud"];
 }
 // 현재 날씨 44px·선 3.4 / 날씨 카드 30px·선 4 (캔버스 기준)
+// 아이콘 그림마다 64칸 안에서 위아래로 치우친 정도가 달라서(비구름은 위로, 해는 가운데),
+// 실제 그림 범위의 세로 가운데를 칸 가운데에 오도록 viewBox를 옮김
+function centerIcon(box) {
+  const svg = box && box.querySelector("svg");
+  if (!svg || !svg.getBBox) return;
+  try {
+    const bb = svg.getBBox();
+    if (!bb.height) return;
+    svg.setAttribute("viewBox", `0 ${(bb.y + bb.height / 2 - 32).toFixed(2)} 64 64`);
+  } catch (e) {}
+}
 const svgIcon = (k, size, stroke) => `<svg viewBox="0 0 64 64" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.cloud}</svg>`;
 
 // 기온: 진짜 마이너스 기호(−) + 폭에서 빠지는 매달린 '°'
+const tempText = (v) => { const n = Math.round(v); return n < 0 ? "−" + Math.abs(n) : String(n); };
 const degHTML = (v) => {
   if (v == null || !isFinite(v)) return "-";                   // 값이 비어 오면 0°로 보이지 않게
-  const n = Math.round(v); return `${n < 0 ? "−" + Math.abs(n) : n}<span class="deg">°</span>`;
+  return `<span class="n">${tempText(v)}<span class="deg">°</span></span>`;
 };
+// 범위 숫자 '12°'의 실제 칠해진 모양(숫자 굵게 + ° 보통 굵기)의 가운데를 글자 상자 가운데로 옮김
+// → 상자 가운데에 맞추는 것만으로는 글꼴마다 숫자 양옆 여백이 달라 기준점에서 1~3px씩 비껴 보임
+function centerRangeInk(el) {
+  el.style.transform = "";
+  try {
+    const digits = el.firstChild && el.firstChild.nodeType === 3 ? el.firstChild.textContent : "";
+    if (!digits || !el.querySelector(".dg")) return;
+    const cs = getComputedStyle(el), fs = parseFloat(cs.fontSize);
+    _inkCtx.font = `700 ${fs}px ${cs.fontFamily}`; const m1 = _inkCtx.measureText(digits);
+    _inkCtx.font = `400 ${fs}px ${cs.fontFamily}`; const m2 = _inkCtx.measureText("°");
+    if (m1.actualBoundingBoxRight == null) return;
+    const inkL = -m1.actualBoundingBoxLeft, inkR = m1.width + m2.actualBoundingBoxRight;
+    const dx = (m1.width + m2.width) / 2 - (inkL + inkR) / 2;
+    if (Math.abs(dx) >= 0.3) el.style.transform = `translateX(${dx.toFixed(1)}px)`;
+  } catch (e) {}
+}
+
+// 최저·최고 범위 막대
+// - 두 숫자는 고정 칸(--tcol) 안에: 넓으면 둘 중 넓은 쪽 기준 비율로 두 숫자를 같은 크기로 함께 줄임
+// - 점: 지금 기온의 위치 (오늘 화면만, 범위 밖이면 양끝에 붙음)
+function setRange(lo, hi, cur) {
+  const a = $("d-min"), b = $("d-max"), dot = $("t-dot");
+  const txt = (v) => (v == null || !isFinite(v)) ? "-" : `${tempText(v)}<span class="dg">°</span>`;
+  a.innerHTML = txt(lo); b.innerHTML = txt(hi);
+  a.style.fontSize = b.style.fontSize = "";
+  const col = parseFloat(getComputedStyle($("temps")).getPropertyValue("--tmax")) || 84;
+  const base = parseFloat(getComputedStyle(a).fontSize) || 48;
+  const w = Math.max(a.offsetWidth, b.offsetWidth);              // 무대 배율과 상관없는 실제 배치 폭
+  if (w > col) { const fs = Math.floor(base * col / w * 2) / 2; a.style.fontSize = b.style.fontSize = fs + "px"; }
+  centerRangeInk(a); centerRangeInk(b);
+  const ok = (v) => v != null && isFinite(v);
+  if (ok(cur) && ok(lo) && ok(hi)) {
+    const r = hi > lo ? (cur - lo) / (hi - lo) : 0.5;
+    dot.style.left = `${(Math.max(0, Math.min(1, r)) * 100).toFixed(1)}%`;
+    dot.classList.remove("off");
+  } else dot.classList.add("off");
+  $("temps").setAttribute("aria-label", ok(lo) && ok(hi) ? `최저 ${tempText(lo)}도, 최고 ${tempText(hi)}도${ok(cur) ? `, 지금 ${tempText(cur)}도` : ""}` : "최저·최고 기온");
+}
 let lastWeather = null;
 
 let weatherBusy = false;
@@ -400,17 +516,20 @@ async function updateWeather() {
   weatherBusy = true;
   const { lat, lon } = CONFIG.LOCATION;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-    + `&current=temperature_2m,weather_code,is_day`
+    + `&current=temperature_2m,apparent_temperature,weather_code,is_day`
     + `&hourly=precipitation_probability`
-    + `&daily=temperature_2m_max,temperature_2m_min,weather_code`
+    + `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,snowfall_sum,sunrise,sunset`
     + `&timezone=${encodeURIComponent(TZ)}&forecast_days=3`;
   try {
     const d = await fetchJSON(url);
     lastWeather = d;
     const c = d.current, [desc, icon] = wmo(c.weather_code, c.is_day);
-    $("w-icon").innerHTML = svgIcon(icon, 44, 3.4);
+    $("w-icon").innerHTML = svgIcon(icon, 40, 3.2);
+    centerIcon($("w-icon"));
     $("w-icon").setAttribute("aria-label", desc);
     $("w-temp").innerHTML = degHTML(c.temperature_2m);
+    $("w-feel").innerHTML = (c.apparent_temperature == null || !isFinite(c.apparent_temperature)) ? "" : `체감 ${tempText(c.apparent_temperature)}°`;
+    fitNowTemp();
     renderDay();
     setStamp();
     setStatus("w", "");
@@ -419,6 +538,29 @@ async function updateWeather() {
   } finally {
     weatherBusy = false;
   }
+}
+
+function fitNowTemp() {
+  const box = document.querySelector(".now-l"), el = $("w-temp");
+  el.style.fontSize = "";
+  let fs = parseFloat(getComputedStyle(el).fontSize) || 56;   // 기본 크기(지원 여부에 따라 56 또는 46)부터 시작
+  while (box.scrollWidth > box.clientWidth && fs > 44) { fs -= 2; el.style.fontSize = fs + "px"; }
+}
+
+const RAIN_NUM_RATIO = 0.75;                                     // 숫자 크기 조절: 1이면 '100%'가 라벨 폭과 같음
+function fitRainNum() {
+  const label = $("rain-label"), num = $("d-rain");
+  const lw = label.getBoundingClientRect().width / stageScale;
+  if (!lw) return;
+  const probe = document.createElement("div");                  // 같은 스타일로 '100%'를 37px에 그려 폭을 잼
+  probe.className = "rn-num";
+  probe.style.cssText = "position:absolute;visibility:hidden;font-size:37px";
+  probe.innerHTML = `100<span class="pct">%</span>`;
+  label.parentNode.appendChild(probe);
+  const pw = probe.getBoundingClientRect().width / stageScale;
+  probe.remove();
+  // '100%' 폭 = 라벨 폭의 RAIN_NUM_RATIO배가 되는 크기. 강수량도 같은 크기
+  if (pw) [num, $("d-amt")].forEach(el => el.style.fontSize = `${(37 * RAIN_NUM_RATIO * lw / pw).toFixed(2)}px`);
 }
 
 /* 날씨 카드 누르기: 오늘 ↔ 내일을 15초 동안 바꿔 보여주고, 그 뒤 시간대에 맞는 쪽으로 돌아감
@@ -481,26 +623,39 @@ function renderDay() {
   const [ddesc, dicon] = wmo(d.daily.weather_code[idx]);
   $("day-title").innerHTML = (isTmr ? `<span class="tag tmr">내일</span>` : `<span class="tag today">오늘</span>`)
     + `<div id="d-icon">${svgIcon(dicon, 30, 4)}</div><span id="d-desc">${ddesc}</span>`;
-  $("d-max").innerHTML = degHTML(d.daily.temperature_2m_max[idx]);
-  $("d-min").innerHTML = degHTML(d.daily.temperature_2m_min[idx]);
+  centerIcon($("d-icon"));
+  const curT = !isTmr && d.current ? d.current.temperature_2m : null;
+  setRange(d.daily.temperature_2m_min[idx], d.daily.temperature_2m_max[idx], curT);
+  // 강수량: 눈이 오면 적설(cm), 아니면 강수량(mm, 없으면 0). 강수확률과 같은 형식으로 항상 표시
+  const snow = (d.daily.snowfall_sum || [])[idx], rain = (d.daily.precipitation_sum || [])[idx];
+  const amt = (v) => v <= 0 ? "0" : v < 1 ? v.toFixed(1) : String(Math.round(v));
+  if (snow != null && snow >= 0.1) {
+    $("amt-label").textContent = "적설"; $("d-amt").innerHTML = `${amt(snow)}<span class="pct">cm</span>`;
+  } else {
+    $("amt-label").textContent = "강수량";
+    $("d-amt").innerHTML = rain == null || !isFinite(rain) ? "-" : `${amt(rain)}<span class="pct">mm</span>`;
+  }
   const hours = [], probs = [];
   d.hourly.time.forEach((t, i) => { if (t.startsWith(dayStr)) { hours.push(Number(t.slice(11, 13))); probs.push(d.hourly.precipitation_probability[i] ?? 0); } });
   // 큰 숫자 = 그래프와 같은 시간별 값의 최댓값 → 숫자와 그래프 최고점이 항상 일치
   $("d-rain").innerHTML = `${probs.length ? Math.max(...probs) : 0}<span class="pct">%</span>`;
-  drawRainChart(hours, probs, isTmr ? null : p.h + p.m / 60);
+  // 해 뜨기 전·해 진 뒤 (그래프 밤 음영용, "2026-11-07T07:02" → 7.03시)
+  const hOf = (t) => (typeof t === "string" && t.length >= 16) ? Number(t.slice(11, 13)) + Number(t.slice(14, 16)) / 60 : null;
+  const sun = [hOf((d.daily.sunrise || [])[idx]), hOf((d.daily.sunset || [])[idx])];
+  drawRainChart(hours, probs, isTmr ? null : p.h + p.m / 60, sun);
 }
 
 /* 강수 그래프 (캔버스 249×174 기준: 그래프 위 20 · 아래 26 · 왼쪽 4 · 오른쪽 10 여백, 눈금 글자 14px)
    지나간 시간은 회색으로 흐리게, 지금 시각은 점선, 최고점은 점 + '17시 60%' */
 let lastRain = null;
-function drawRainChart(hours, probs, nowH) {
-  lastRain = [hours, probs, nowH];
+function drawRainChart(hours, probs, nowH, sun = [null, null]) {
+  lastRain = [hours, probs, nowH, sun];
   const box = $("rain-chart");
   const W = box.clientWidth, H = box.clientHeight;
   if (!probs.length) { box.innerHTML = ""; return; }
-  if (!W || !H) { requestAnimationFrame(() => box.clientHeight && drawRainChart(hours, probs, nowH)); return; }
+  if (!W || !H) { requestAnimationFrame(() => box.clientHeight && drawRainChart(hours, probs, nowH, sun)); return; }
   const C = { blue: "#003876", line: "#2C2F37", sub: "#B0B8C1", text: "#E6E9ED", card: "#1F222A" };
-  const FONT = `font-family="-apple-system, 'Apple SD Gothic Neo', sans-serif"`;
+  const FONT = `font-family="-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard Variable', Pretendard, sans-serif"`;
   const padL = 4, padR = 10, padT = 20, padB = 26;
   const x = (h) => padL + (h / 23) * (W - padL - padR);
   const y = (v) => padT + (1 - v / 100) * (H - padT - padB);
@@ -519,7 +674,12 @@ function drawRainChart(hours, probs, nowH) {
   const max = Math.max(...probs), mi = probs.indexOf(max);
   const grid = [0, 50, 100].map(v => `<line x1="${padL}" x2="${f(W - padR)}" y1="${f(y(v))}" y2="${f(y(v))}"/>`).join("")
     + [0, 6, 12, 18, 23].map(h => `<line x1="${f(x(h))}" x2="${f(x(h))}" y1="${f(y(100))}" y2="${f(y(0))}"/>`).join("");
-  const xl = [0, 6, 12, 18].map(h => `<text x="${f(x(h))}" y="${f(H - 4)}"${h === 0 ? "" : ` text-anchor="middle"`}>${h}시</text>`).join("");
+  const xl = [0, 6, 12, 18].map(h => `<text x="${f(x(h))}" y="${f(H)}"${h === 0 ? "" : ` text-anchor="middle"`}>${h}시</text>`).join("");
+
+  // 밤 시간대 음영: 0시~일출, 일몰~23시 (그래프 칸 안쪽만)
+  const shade = (a, b) => b > a ? `<rect x="${f(x(a))}" y="${f(y(100))}" width="${f(x(b) - x(a))}" height="${f(y(0) - y(100))}" fill="#000" opacity=".28"/>` : "";
+  const [sr, ss] = sun;
+  const night = (sr != null ? shade(0, Math.min(23, sr)) : "") + (ss != null ? shade(Math.max(0, ss), 23) : "");
 
   const cut = nowH != null ? x(Math.min(23, nowH)) : padL;
   const nowLine = nowH != null
@@ -537,6 +697,7 @@ function drawRainChart(hours, probs, nowH) {
       <clipPath id="past"><rect x="0" y="0" width="${f(cut)}" height="${H}"/></clipPath>
       <clipPath id="future"><rect x="${f(cut)}" y="0" width="${f(W - cut)}" height="${H}"/></clipPath>
     </defs>
+    ${night}
     <g stroke="${C.line}" stroke-width="1">${grid}</g>
     <g fill="${C.sub}" font-size="14" font-weight="500" ${FONT}>${xl}</g>
     <g clip-path="url(#future)"><path d="${area}" fill="url(#rg)"/><path d="${path}" fill="none" stroke="${C.blue}" stroke-width="3" stroke-linejoin="round"/></g>
@@ -721,8 +882,8 @@ function renderAnalog() {
   svg.querySelector(".mh").style.transform = `rotate(${mDeg}deg)`;
   svg.querySelector(".sh").style.transform = `rotate(${sec * 6}deg)`;
   svg.setAttribute("aria-label", `아날로그 시계 ${p.h % 12 || 12}시 ${p.m}분`);
-  $("digital").textContent = `${pad(p.h)}:${pad(p.m)}`;
-  if ($("cv-date").textContent !== $("date").textContent) $("cv-date").textContent = $("date").textContent;
+  setText($("digital"), `${pad(p.h)}:${pad(p.m)}`);
+  setText($("cv-date"), $("date").textContent);
   renderCalendar(p.ymd);
 }
 
@@ -767,6 +928,7 @@ function tick() {
   lastDefaultView = key;
   if (!wakeSentinel || wakeSentinel.released) keepAwake();    // 시스템이 화면 유지를 풀었으면 다시 요청
 }
+fitRainNum();
 tick(); updateWeather(); updateAir(); keepAwake();
 setInterval(tick, 15 * 1000);
 // 시계: '다음 초가 바뀌는 순간'(+15ms 여유)에 맞춰 갱신 → 밀려도 늦음이 쌓이지 않음
